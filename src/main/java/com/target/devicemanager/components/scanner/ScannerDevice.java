@@ -368,4 +368,11 @@ public class ScannerDevice {
         connectLock.unlock();
         isLocked = false;
     }
+
+    /**
+     * Exposes the underlying DynamicDevice for lifecycle operations.
+     */
+    public DynamicDevice<? extends Scanner> getDynamicDevice() {
+        return dynamicScanner;
+    }
 }

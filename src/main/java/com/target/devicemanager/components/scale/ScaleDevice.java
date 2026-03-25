@@ -353,4 +353,11 @@ public class ScaleDevice implements StatusUpdateListener, ErrorListener {
     public boolean getIsLocked() {
         return isLocked;
     }
+
+    /**
+     * Exposes the underlying DynamicDevice for lifecycle operations.
+     */
+    public DynamicDevice<Scale> getDynamicDevice() {
+        return dynamicScale;
+    }
 }

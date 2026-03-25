@@ -387,6 +387,7 @@
         <!--Other non JavaPOS required property (mostly vendor properties and bus specific properties i.e. RS232 )-->
         <prop name="deviceBus" type="String" value="Proprietary"/>
         <prop name="DeviceID" type="String" value="EloPOSPackCD1"/>
+        <prop name="drawerType" type="String" value="Primary"/>
     </JposEntry>
 
 
@@ -409,9 +410,10 @@
         <prop name="ModelVersion" type="String" value="3.16.4.27"/>
         <prop name="Description" type="String" value="NCR JavaPOS CashDrawer Device Service"/>
         <prop name="YCableStatus" type="String" value="2"/>
+        <prop name="drawerType" type="String" value="Primary"/>
     </JposEntry>
 
-    
+
     <JposEntry logicalName="CashDrawer_Uses_Printer">
         <creation factoryClass="com.ncr.retail.jpos.NCRJposServiceInstanceFactory" serviceClass="com.ncr.retail.jpos.services.cashdrawer.CashDrawerService"/>
         <vendor name="NCR" url="http://www.ncr.com"/>
@@ -428,9 +430,33 @@
         <prop name="ModelVersion" type="String" value="3.16.1.25"/>
         <prop name="Description" type="String" value="NCR JavaPOS CashDrawer Device Service"/>
         <prop name="YCableStatus" type="String" value="1"/>
-</JposEntry>
-    
-    
+        <prop name="drawerType" type="String" value="Primary"/>
+    </JposEntry>
+
+    <!-- Secondary Cash Drawer (example: second NCR drawer on different port) -->
+    <JposEntry logicalName="CashDrawer_Secondary">
+        <creation factoryClass="com.ncr.retail.jpos.NCRJposServiceInstanceFactory" serviceClass="com.ncr.retail.jpos.services.cashdrawer.CashDrawerService"/>
+        <vendor name="NCR" url="http://www.ncr.com"/>
+        <jpos category="CashDrawer" version="1.10"/>
+        <product description="Secondary Cash Drawer" name="NCR Services for JavaPOS(TM) Standard" url="http://www.ncr.com"/>
+
+        <!--Other non JavaPOS required property (mostly vendor properties and bus specific properties i.e. RS232 )-->
+        <prop name="nDeviceNumber" type="String" value="1"/>
+        <prop name="Model.OpenDrawerDetect" type="String" value="0"/>
+        <prop name="sModelClassName" type="String" value="NCRCashDrawerProcessor"/>
+        <prop name="Version" type="String" value="1.10.0"/>
+        <prop name="Model.Model" type="String" value="INTEGRATED"/>
+        <prop name="ModelDescription" type="String" value="NCR Cash Drawer Kickout (Secondary)"/>
+        <prop name="Model.OpenDrawerSUE" type="String" value="1"/>
+        <prop name="SUEAsyncFire" type="String" value="T"/>
+        <prop name="ConnectionType" type="String" value="M"/>
+        <prop name="ModelVersion" type="String" value="3.16.4.27"/>
+        <prop name="Description" type="String" value="NCR JavaPOS CashDrawer Device Service (Secondary)"/>
+        <prop name="YCableStatus" type="String" value="2"/>
+        <prop name="drawerType" type="String" value="Secondary"/>
+    </JposEntry>
+
+
     <JposEntry logicalName="Honeywell 1900 Scanner">
         <creation factoryClass="com.honeywell.jpos.HHPJposServiceInstanceFactory" serviceClass="com.honeywell.jpos.scanner.ScannerService"/>
         <vendor name="Honeywell" url="www.honeywell.com"/>
@@ -942,5 +968,53 @@
 
     <!--Other non JavaPOS required property (mostly vendor properties and bus specific properties i.e. RS232 )-->
 </JposEntry>
+
+    <!-- ========== KEYLOCK ========== -->
+    <!-- Sample Keylock entry. Keylocks are shared devices (skipClaim=true). -->
+    <JposEntry logicalName="NCR-Keylock">
+        <creation factoryClass="ncr.res.jpos.keylock.service.KeylockInstanceFactory" serviceClass="ncr.res.jpos.keylock.service.KeylockService"/>
+        <vendor name="NCR" url="http://www.ncr.com"/>
+        <jpos category="Keylock" version="1.13"/>
+        <product description="KeylockService" name="KeylockService" url="http://www.ncr.com"/>
+
+        <!--Other non JavaPOS required property -->
+        <prop name="deviceBus" type="String" value="USB"/>
+    </JposEntry>
+
+    <!-- ========== POS KEYBOARD ========== -->
+    <!-- Sample POSKeyboard entry. POS keyboards use skipTestCycle=true. -->
+    <JposEntry logicalName="NCR-POSKeyboard">
+        <creation factoryClass="ncr.res.jpos.poskeyboard.service.POSKeyboardInstanceFactory" serviceClass="ncr.res.jpos.poskeyboard.service.POSKeyboardService"/>
+        <vendor name="NCR" url="http://www.ncr.com"/>
+        <jpos category="POSKeyboard" version="1.13"/>
+        <product description="POSKeyboardService" name="POSKeyboardService" url="http://www.ncr.com"/>
+
+        <!--Other non JavaPOS required property -->
+        <prop name="deviceBus" type="String" value="USB"/>
+    </JposEntry>
+
+    <!-- ========== MSR (Magnetic Stripe Reader) ========== -->
+    <!-- Sample MSR entry. MSR auto-enables on connect for continuous card-swipe listening. -->
+    <JposEntry logicalName="NCR-MSR">
+        <creation factoryClass="com.ncr.retail.jpos.NCRJposServiceInstanceFactory" serviceClass="com.ncr.retail.jpos.services.msr.MSRService"/>
+        <vendor name="NCR" url="http://www.ncr.com"/>
+        <jpos category="MSR" version="1.13"/>
+        <product description="NCR MSR Service" name="NCR Services for JavaPOS(TM) Standard" url="http://www.ncr.com"/>
+
+        <!--Other non JavaPOS required property -->
+        <prop name="deviceBus" type="String" value="USB"/>
+    </JposEntry>
+
+    <!-- ========== TONE INDICATOR ========== -->
+    <!-- Sample ToneIndicator entry. Output-only device for beeps and tones. -->
+    <JposEntry logicalName="NCR-ToneIndicator">
+        <creation factoryClass="com.ncr.retail.jpos.NCRJposServiceInstanceFactory" serviceClass="com.ncr.retail.jpos.services.toneindicator.ToneIndicatorService"/>
+        <vendor name="NCR" url="http://www.ncr.com"/>
+        <jpos category="ToneIndicator" version="1.13"/>
+        <product description="NCR ToneIndicator Service" name="NCR Services for JavaPOS(TM) Standard" url="http://www.ncr.com"/>
+
+        <!--Other non JavaPOS required property -->
+        <prop name="deviceBus" type="String" value="USB"/>
+    </JposEntry>
 
 </JposEntries>

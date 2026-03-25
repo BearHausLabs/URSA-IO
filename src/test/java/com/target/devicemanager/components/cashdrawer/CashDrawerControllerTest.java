@@ -11,9 +11,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.http.ResponseEntity;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -52,29 +54,40 @@ public class CashDrawerControllerTest {
     }
 
     @Test
-    public void openCashDrawer_CallsThroughToCashDrawerManager() throws DeviceException {
+    public void openCashDrawer_NoDrawerId_CallsThroughToCashDrawerManager() throws DeviceException {
         //arrange
 
         //act
-        cashDrawerController.openCashDrawer();
+        cashDrawerController.openCashDrawer(null);
 
         //assert
-        verify(mockCashDrawerManager).openCashDrawer();
+        verify(mockCashDrawerManager).openCashDrawer(1);
+    }
+
+    @Test
+    public void openCashDrawer_WithDrawerId_CallsThroughToCashDrawerManager() throws DeviceException {
+        //arrange
+
+        //act
+        cashDrawerController.openCashDrawer(2);
+
+        //assert
+        verify(mockCashDrawerManager).openCashDrawer(2);
     }
 
     @Test
     public void openCashDrawer_WhenThrowsError() throws DeviceException {
         //arrange
-        doThrow(new DeviceException(DeviceError.DEVICE_BUSY)).when(mockCashDrawerManager).openCashDrawer();
+        doThrow(new DeviceException(DeviceError.DEVICE_BUSY)).when(mockCashDrawerManager).openCashDrawer(1);
 
         //act
         try {
-            cashDrawerController.openCashDrawer();
+            cashDrawerController.openCashDrawer(null);
         }
 
         //assert
         catch(DeviceException deviceException) {
-            verify(mockCashDrawerManager).openCashDrawer();
+            verify(mockCashDrawerManager).openCashDrawer(1);
             assertEquals(DeviceError.DEVICE_BUSY, deviceException.getDeviceError());
             return;
         }
@@ -82,12 +95,12 @@ public class CashDrawerControllerTest {
     }
 
     @Test
-    public void reconnect_CallsThroughToCashDrawerManager() throws DeviceException {
+    public void reconnect_NoDrawerId_CallsThroughToCashDrawerManager() throws DeviceException {
         //arrange
 
         //act
         try {
-            cashDrawerController.reconnect();
+            cashDrawerController.reconnect(null);
         } catch (DeviceException deviceException) {
             fail("cashDrawerController.reconnect() should not result in an Exception");
         }
@@ -97,13 +110,28 @@ public class CashDrawerControllerTest {
     }
 
     @Test
+    public void reconnect_WithDrawerId_CallsThroughToCashDrawerManager() throws DeviceException {
+        //arrange
+
+        //act
+        try {
+            cashDrawerController.reconnect(1);
+        } catch (DeviceException deviceException) {
+            fail("cashDrawerController.reconnect() should not result in an Exception");
+        }
+
+        //assert
+        verify(mockCashDrawerManager).reconnectDevice(1);
+    }
+
+    @Test
     public void reconnect_WhenThrowsError() throws DeviceException {
         //arrange
         doThrow(new DeviceException(DeviceError.DEVICE_BUSY)).when(mockCashDrawerManager).reconnectDevice();
 
         //act
         try {
-            cashDrawerController.reconnect();
+            cashDrawerController.reconnect(null);
         }
 
         //assert
@@ -116,17 +144,32 @@ public class CashDrawerControllerTest {
     }
 
     @Test
-    public void getHealth_ReturnsHealthFromManager() {
+    public void getHealth_NoDrawerId_ReturnsAllHealthFromManager() {
         //arrange
-        DeviceHealthResponse expected = new DeviceHealthResponse("cashDrawer", DeviceHealth.READY);
-        when(mockCashDrawerManager.getHealth()).thenReturn(expected);
+        List<DeviceHealthResponse> expected = List.of(new DeviceHealthResponse("cashDrawer", DeviceHealth.READY));
+        when(mockCashDrawerManager.getAllHealth()).thenReturn(expected);
 
         //act
-        DeviceHealthResponse actual = cashDrawerController.getHealth();
+        ResponseEntity<List<DeviceHealthResponse>> actual = cashDrawerController.getHealth(null);
 
         //assert
-        assertEquals(expected, actual);
-        verify(mockCashDrawerManager).getHealth();
+        assertEquals(expected, actual.getBody());
+        verify(mockCashDrawerManager).getAllHealth();
+    }
+
+    @Test
+    public void getHealth_WithDrawerId_ReturnsSpecificHealthFromManager() {
+        //arrange
+        DeviceHealthResponse expected = new DeviceHealthResponse("cashDrawer", DeviceHealth.READY);
+        when(mockCashDrawerManager.getHealth(1)).thenReturn(expected);
+
+        //act
+        ResponseEntity<List<DeviceHealthResponse>> actual = cashDrawerController.getHealth(1);
+
+        //assert
+        assertEquals(1, actual.getBody().size());
+        assertEquals(expected, actual.getBody().get(0));
+        verify(mockCashDrawerManager).getHealth(1);
     }
 
     @Test

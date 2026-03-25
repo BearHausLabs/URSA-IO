@@ -22,6 +22,8 @@ import java.util.concurrent.locks.ReentrantLock;
 public class CashDrawerDevice implements StatusUpdateListener{
     private final DynamicDevice<? extends CashDrawer> dynamicCashDrawer;
     private final DeviceListener deviceListener;
+    private final int drawerId;
+    private final String logicalName;
     private boolean deviceConnected = false;
     private boolean cashDrawerOpen = false;
     private boolean areListenersAttached;
@@ -33,14 +35,21 @@ public class CashDrawerDevice implements StatusUpdateListener{
 
     /**
      * Makes sure everything is connected and online.
-     * @param dynamicCashDrawer
-     * @param deviceListener
+     * Backward-compatible constructor: defaults to drawerId=1.
      */
     public CashDrawerDevice(DynamicDevice<? extends CashDrawer> dynamicCashDrawer, DeviceListener deviceListener) {
-        this(dynamicCashDrawer, deviceListener, new ReentrantLock(true));
+        this(dynamicCashDrawer, deviceListener, 1, "", new ReentrantLock(true));
     }
 
-    public CashDrawerDevice(DynamicDevice<? extends CashDrawer> dynamicCashDrawer, DeviceListener deviceListener, ReentrantLock connectLock) {
+    public CashDrawerDevice(DynamicDevice<? extends CashDrawer> dynamicCashDrawer, DeviceListener deviceListener, int drawerId) {
+        this(dynamicCashDrawer, deviceListener, drawerId, "", new ReentrantLock(true));
+    }
+
+    public CashDrawerDevice(DynamicDevice<? extends CashDrawer> dynamicCashDrawer, DeviceListener deviceListener, int drawerId, String logicalName) {
+        this(dynamicCashDrawer, deviceListener, drawerId, logicalName, new ReentrantLock(true));
+    }
+
+    public CashDrawerDevice(DynamicDevice<? extends CashDrawer> dynamicCashDrawer, DeviceListener deviceListener, int drawerId, String logicalName, ReentrantLock connectLock) {
         if (dynamicCashDrawer == null) {
             IllegalArgumentException illegalArgumentException = new IllegalArgumentException("simpleCashDrawer cannot be null");
             log.failure("Cash Drawer Failed in Constructor: simpleCashDrawer cannot be null", 18,
@@ -53,9 +62,41 @@ public class CashDrawerDevice implements StatusUpdateListener{
                     illegalArgumentException);
             throw illegalArgumentException;
         }
+        if (drawerId < 1) {
+            IllegalArgumentException illegalArgumentException = new IllegalArgumentException("drawerId must be >= 1");
+            log.failure("Cash Drawer Failed in Constructor: drawerId must be >= 1", 18,
+                    illegalArgumentException);
+            throw illegalArgumentException;
+        }
         this.dynamicCashDrawer = dynamicCashDrawer;
         this.deviceListener = deviceListener;
+        this.drawerId = drawerId;
+        this.logicalName = logicalName != null ? logicalName : "";
         this.connectLock = connectLock;
+    }
+
+    /**
+     * Gets the drawer ID (1-based index).
+     * @return Drawer ID.
+     */
+    public int getDrawerId() {
+        return this.drawerId;
+    }
+
+    /**
+     * Gets a display-friendly drawer type string for logging/API compatibility.
+     * @return String like "DRAWER_1", "DRAWER_2", etc.
+     */
+    public String getDrawerType() {
+        return "DRAWER_" + this.drawerId;
+    }
+
+    /**
+     * Gets the configured logical name for this drawer.
+     * @return The logical name, or empty string if auto-discovered.
+     */
+    public String getLogicalName() {
+        return this.logicalName;
     }
 
     /**
@@ -69,7 +110,7 @@ public class CashDrawerDevice implements StatusUpdateListener{
             attachEventListeners();
             areListenersAttached = true;
         }
-        
+
         /*
         NCR Devices throws exception when setDeviceEnabled is called when device is not connected.
         Enable the device when device is connected so that we can get status update events.
@@ -193,7 +234,7 @@ public class CashDrawerDevice implements StatusUpdateListener{
                 log.failure("Cash Drawer is already open: " + CashDrawerError.ALREADY_OPEN.getDescription(), 17, deviceException);
                 throw deviceException;
             }
-            log.success("Opening cash drawer...", 1);
+            log.success("Opening cash drawer " + drawerId + "...", 1);
             cashDrawer.openDrawer();
             waitForCashDrawerClose();
             if(!deviceConnected) {
@@ -254,7 +295,7 @@ public class CashDrawerDevice implements StatusUpdateListener{
      * Waits for CashDrawer to close or check interval.
      */
     private void waitForCashDrawerClose() {
-        log.success("Waiting for cash drawer to close...", 1);
+        log.success("Waiting for cash drawer " + drawerId + " to close...", 1);
         //This do/while is necessary for status to stabilize when cash drawer opens
         do {
             try {
@@ -273,12 +314,12 @@ public class CashDrawerDevice implements StatusUpdateListener{
     @Override
     public void statusUpdateOccurred(StatusUpdateEvent statusUpdateEvent) {
         int status = statusUpdateEvent.getStatus();
-        log.success("Cash Drawer statusUpdateOccurred(): " + status, 1);
+        log.success("Cash Drawer " + drawerId + " statusUpdateOccurred(): " + status, 1);
         switch(status) {
             case JposConst.JPOS_SUE_POWER_OFF:
             case JposConst.JPOS_SUE_POWER_OFF_OFFLINE:
             case JposConst.JPOS_SUE_POWER_OFFLINE:
-                log.failure("Cash Drawer Status Update: Power offline", 13, null);
+                log.failure("Cash Drawer " + drawerId + " Status Update: Power offline", 13, null);
                 deviceConnected = false;
                 break;
             case JposConst.JPOS_SUE_POWER_ONLINE:
@@ -286,11 +327,11 @@ public class CashDrawerDevice implements StatusUpdateListener{
                 deviceConnected = true;
                 break;
             case CashDrawerConst.CASH_SUE_DRAWEROPEN:
-                log.success("Cash drawer opened", 1);
+                log.success("Cash drawer " + drawerId + " opened", 1);
                 cashDrawerOpen = true;
                 break;
             case CashDrawerConst.CASH_SUE_DRAWERCLOSED:
-                log.success("Cash drawer closed", 1);
+                log.success("Cash drawer " + drawerId + " closed", 1);
                 cashDrawerOpen = false;
                 break;
             default:
@@ -326,5 +367,12 @@ public class CashDrawerDevice implements StatusUpdateListener{
      */
     public boolean getIsLocked() {
         return isLocked;
+    }
+
+    /**
+     * Exposes the underlying DynamicDevice for lifecycle operations.
+     */
+    public DynamicDevice<? extends CashDrawer> getDynamicDevice() {
+        return dynamicCashDrawer;
     }
 }

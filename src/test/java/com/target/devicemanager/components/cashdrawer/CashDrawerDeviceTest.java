@@ -46,7 +46,7 @@ public class CashDrawerDeviceTest {
         when(mockDynamicCashDrawer.getDevice()).thenReturn(mockCashDrawer);
 
         cashDrawerDevice = new CashDrawerDevice(mockDynamicCashDrawer, mockDeviceListener);
-        cashDrawerDeviceLock = new CashDrawerDevice(mockDynamicCashDrawer, mockDeviceListener, mockConnectLock);
+        cashDrawerDeviceLock = new CashDrawerDevice(mockDynamicCashDrawer, mockDeviceListener, 1, "", mockConnectLock);
 
         //Default Mock Behavior
         when(mockCashDrawer.getDrawerOpened()).thenReturn(true);
@@ -95,6 +95,33 @@ public class CashDrawerDeviceTest {
         } catch(Exception exception) {
             fail("Existing Device Argument should not result in an Exception");
         }
+    }
+
+    @Test
+    public void ctor_WhenDrawerIdIsZero_ThrowsException() {
+        try {
+            new CashDrawerDevice(mockDynamicCashDrawer, mockDeviceListener, 0);
+        } catch (IllegalArgumentException iae) {
+            assertEquals("drawerId must be >= 1", iae.getMessage());
+            return;
+        }
+        fail("Expected Exception, but got none");
+    }
+
+    @Test
+    public void getDrawerId_ReturnsOne() {
+        assertEquals(1, cashDrawerDevice.getDrawerId());
+    }
+
+    @Test
+    public void getDrawerType_ReturnsDrawer1() {
+        assertEquals("DRAWER_1", cashDrawerDevice.getDrawerType());
+    }
+
+    @Test
+    public void getDrawerType_ReturnsDrawer2() {
+        CashDrawerDevice drawer2 = new CashDrawerDevice(mockDynamicCashDrawer, mockDeviceListener, 2);
+        assertEquals("DRAWER_2", drawer2.getDrawerType());
     }
 
     @Test

@@ -4,50 +4,65 @@ import com.target.devicemanager.common.SimulatorState;
 import com.target.devicemanager.configuration.ApplicationConfig;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping(value = "/v1/simulate")
 @Tag(name = "Cash Drawer")
 @Profile("local")
 public class CashDrawerSimulatorController {
-    private final SimulatedJposCashDrawer simulatedJposCashDrawer;
+    private final List<SimulatedJposCashDrawer> simulatedDrawers;
     private final ApplicationConfig applicationConfig;
 
-    public CashDrawerSimulatorController(ApplicationConfig applicationConfig, SimulatedJposCashDrawer simulatedJposCashDrawer) {
+    @Autowired
+    public CashDrawerSimulatorController(ApplicationConfig applicationConfig, List<SimulatedJposCashDrawer> simulatedDrawers) {
         if (applicationConfig == null) {
             throw new IllegalArgumentException("applicationConfig cannot be null");
         }
 
-        if (simulatedJposCashDrawer == null) {
-            throw new IllegalArgumentException("simulatedJposCashDrawer cannot be null");
+        if (simulatedDrawers == null || simulatedDrawers.isEmpty()) {
+            throw new IllegalArgumentException("simulatedDrawers cannot be null or empty");
         }
 
-        this.simulatedJposCashDrawer = simulatedJposCashDrawer;
+        this.simulatedDrawers = simulatedDrawers;
         this.applicationConfig = applicationConfig;
     }
 
-    @Operation(description = "Set current status of the cashdrawer")
-    @PostMapping(path = "cashdrawerStatus")
-    public void setDeviceStatus(@RequestParam CashDrawerStatus cashDrawerStatus) {
-        if (!applicationConfig.IsSimulationMode()) {
-            throw new UnsupportedOperationException("Simulation mode is not enabled.");
-        }
-
-        simulatedJposCashDrawer.setStatus(cashDrawerStatus);
+    private SimulatedJposCashDrawer pickDrawer(int drawerId) {
+        return simulatedDrawers.stream()
+                .filter(d -> drawerId == d.getDrawerId())
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Unknown drawer ID: " + drawerId));
     }
 
-    @Operation(description = "Set current state of the cashdrawer")
-    @PostMapping(path = "cashdrawerState")
-    public void setDeviceState(@RequestParam SimulatorState simulatorState) {
+    @Operation(description = "Set current status of the cash drawer")
+    @PostMapping(path = "cashdrawerStatus")
+    public void setDeviceStatus(
+            @RequestParam CashDrawerStatus cashDrawerStatus,
+            @RequestParam(defaultValue = "1") int drawerId) {
         if (!applicationConfig.IsSimulationMode()) {
             throw new UnsupportedOperationException("Simulation mode is not enabled.");
         }
 
-        simulatedJposCashDrawer.setState(simulatorState);
+        pickDrawer(drawerId).setStatus(cashDrawerStatus);
+    }
+
+    @Operation(description = "Set current state of the cash drawer")
+    @PostMapping(path = "cashdrawerState")
+    public void setDeviceState(
+            @RequestParam SimulatorState simulatorState,
+            @RequestParam(defaultValue = "1") int drawerId) {
+        if (!applicationConfig.IsSimulationMode()) {
+            throw new UnsupportedOperationException("Simulation mode is not enabled.");
+        }
+
+        pickDrawer(drawerId).setState(simulatorState);
     }
 
     @ExceptionHandler(UnsupportedOperationException.class)

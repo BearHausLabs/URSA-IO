@@ -1,5 +1,7 @@
 package com.target.devicemanager.components.scale;
 
+import com.target.devicemanager.common.DeviceLifecycleResponse;
+import com.target.devicemanager.common.DeviceLifecycleState;
 import com.target.devicemanager.common.StructuredEventLogger;
 import com.target.devicemanager.common.entities.*;
 import com.target.devicemanager.common.events.ConnectionEvent;
@@ -41,6 +43,7 @@ public class ScaleManager implements ScaleEventListener, ConnectionEventListener
     private static final int STABLE_WEIGHT_TIMEOUT_MSEC = 10000;
     private static final int HANG_TIMEOUT_MSEC = STABLE_WEIGHT_TIMEOUT_MSEC + 20000;
     private ConnectEnum connectStatus = ConnectEnum.FIRST_CONNECT;
+    private boolean manualMode = false;
     private List<SseEmitter> deadEmitterList;
     private static final Logger LOGGER = LoggerFactory.getLogger(ScaleManager.class);
     private static final StructuredEventLogger log = StructuredEventLogger.of(StructuredEventLogger.getScaleServiceName(), "ScaleManager", LOGGER);
@@ -78,6 +81,10 @@ public class ScaleManager implements ScaleEventListener, ConnectionEventListener
 
     @Scheduled(fixedDelay = 5000, initialDelay = 5000)
     public void connect() {
+        if (manualMode) {
+            return;
+        }
+
         if (scaleDevice.tryLock()) {
             try {
                 scaleDevice.connect();
@@ -215,5 +222,61 @@ public class ScaleManager implements ScaleEventListener, ConnectionEventListener
         } catch (Exception exception) {
             return getHealth();
         }
+    }
+
+    // --- Step 5: Lifecycle methods ---
+
+    public void openDevice(String logicalName) throws JposException {
+        manualMode = true;
+        scaleDevice.getDynamicDevice().openDevice(logicalName);
+        log.logDeviceEvent("lifecycle_open", "Scale", logicalName);
+    }
+
+    public void claimDevice(int timeout) throws JposException {
+        manualMode = true;
+        scaleDevice.getDynamicDevice().claimDevice(timeout);
+        log.logDeviceEvent("lifecycle_claim", "Scale", scaleDevice.getDeviceName());
+    }
+
+    public void enableDevice() throws JposException {
+        manualMode = true;
+        scaleDevice.getDynamicDevice().enableDevice();
+        log.logDeviceEvent("lifecycle_enable", "Scale", scaleDevice.getDeviceName());
+    }
+
+    public void disableDevice() throws JposException {
+        manualMode = true;
+        scaleDevice.getDynamicDevice().disableDevice();
+        log.logDeviceEvent("lifecycle_disable", "Scale", scaleDevice.getDeviceName());
+    }
+
+    public void releaseDevice() throws JposException {
+        manualMode = true;
+        scaleDevice.getDynamicDevice().releaseDevice();
+        log.logDeviceEvent("lifecycle_release", "Scale", scaleDevice.getDeviceName());
+    }
+
+    public void closeDevice() throws JposException {
+        manualMode = true;
+        scaleDevice.getDynamicDevice().closeDevice();
+        log.logDeviceEvent("lifecycle_close", "Scale", scaleDevice.getDeviceName());
+    }
+
+    public void setAutoMode() {
+        manualMode = false;
+        log.logDeviceEvent("lifecycle_auto", "Scale", scaleDevice.getDeviceName());
+    }
+
+    public DeviceLifecycleResponse getLifecycleStatus() {
+        return new DeviceLifecycleResponse(
+                scaleDevice.getDynamicDevice().getLifecycleState(),
+                scaleDevice.getDeviceName(),
+                manualMode,
+                "Scale"
+        );
+    }
+
+    public boolean isManualMode() {
+        return manualMode;
     }
 }

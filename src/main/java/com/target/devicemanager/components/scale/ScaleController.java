@@ -1,5 +1,6 @@
 package com.target.devicemanager.components.scale;
 
+import com.target.devicemanager.common.DeviceLifecycleResponse;
 import com.target.devicemanager.common.StructuredEventLogger;
 import com.target.devicemanager.common.entities.DeviceError;
 import com.target.devicemanager.common.entities.DeviceException;
@@ -13,14 +14,12 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jpos.JposException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
@@ -143,5 +142,78 @@ public class ScaleController {
             log.failureAPI("response", 13, url, body, statusCode, deviceException);
             throw deviceException;
         }
+    }
+
+    // --- Step 5e: Lifecycle endpoints ---
+
+    @Operation(description = "JPOS open — establish connection to scale")
+    @PostMapping("/scale/lifecycle/open")
+    public DeviceLifecycleResponse lifecycleOpen(@RequestParam String logicalName) throws JposException {
+        String url = "/v1/scale/lifecycle/open";
+        log.successAPI("request", 1, url, logicalName, 0);
+        scaleManager.openDevice(logicalName);
+        return scaleManager.getLifecycleStatus();
+    }
+
+    @Operation(description = "JPOS claim — exclusive access to scale")
+    @PostMapping("/scale/lifecycle/claim")
+    public DeviceLifecycleResponse lifecycleClaim(@RequestParam(defaultValue = "30000") int timeout) throws JposException {
+        String url = "/v1/scale/lifecycle/claim";
+        log.successAPI("request", 1, url, null, 0);
+        scaleManager.claimDevice(timeout);
+        return scaleManager.getLifecycleStatus();
+    }
+
+    @Operation(description = "JPOS enable — enable scale for operations")
+    @PostMapping("/scale/lifecycle/enable")
+    public DeviceLifecycleResponse lifecycleEnable() throws JposException {
+        String url = "/v1/scale/lifecycle/enable";
+        log.successAPI("request", 1, url, null, 0);
+        scaleManager.enableDevice();
+        return scaleManager.getLifecycleStatus();
+    }
+
+    @Operation(description = "JPOS disable — disable scale")
+    @PostMapping("/scale/lifecycle/disable")
+    public DeviceLifecycleResponse lifecycleDisable() throws JposException {
+        String url = "/v1/scale/lifecycle/disable";
+        log.successAPI("request", 1, url, null, 0);
+        scaleManager.disableDevice();
+        return scaleManager.getLifecycleStatus();
+    }
+
+    @Operation(description = "JPOS release — release exclusive access")
+    @PostMapping("/scale/lifecycle/release")
+    public DeviceLifecycleResponse lifecycleRelease() throws JposException {
+        String url = "/v1/scale/lifecycle/release";
+        log.successAPI("request", 1, url, null, 0);
+        scaleManager.releaseDevice();
+        return scaleManager.getLifecycleStatus();
+    }
+
+    @Operation(description = "JPOS close — close connection to scale")
+    @PostMapping("/scale/lifecycle/close")
+    public DeviceLifecycleResponse lifecycleClose() throws JposException {
+        String url = "/v1/scale/lifecycle/close";
+        log.successAPI("request", 1, url, null, 0);
+        scaleManager.closeDevice();
+        return scaleManager.getLifecycleStatus();
+    }
+
+    @Operation(description = "Get current JPOS lifecycle state")
+    @GetMapping("/scale/lifecycle")
+    public DeviceLifecycleResponse getLifecycleStatus() {
+        String url = "/v1/scale/lifecycle";
+        log.successAPI("request", 1, url, null, 0);
+        return scaleManager.getLifecycleStatus();
+    }
+
+    @Operation(description = "Switch back to automatic reconnect mode")
+    @PostMapping("/scale/lifecycle/auto")
+    public DeviceLifecycleResponse lifecycleAuto() {
+        String url = "/v1/scale/lifecycle/auto";
+        log.successAPI("request", 1, url, null, 0);
+        scaleManager.setAutoMode();
+        return scaleManager.getLifecycleStatus();
     }
 }

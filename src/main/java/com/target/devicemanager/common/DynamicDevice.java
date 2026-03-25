@@ -59,11 +59,14 @@ public class DynamicDevice<DEVICE extends BaseJposControl> {
 
     public void disconnect() {
         synchronized (device) {
-            try {
-                device.release();
-                log.success(getDeviceName() + " Released", 5);
-            } catch (JposException jposException) {
-                log.failure(getDeviceName() + " Release failed " + jposException.getMessage(), 5, jposException);
+            // Step 1b: skip release if skipClaim is set on the connector
+            if (!deviceConnector.isSkipClaim()) {
+                try {
+                    device.release();
+                    log.success(getDeviceName() + " Released", 5);
+                } catch (JposException jposException) {
+                    log.failure(getDeviceName() + " Release failed " + jposException.getMessage(), 5, jposException);
+                }
             }
             try {
                 device.close();
@@ -81,7 +84,8 @@ public class DynamicDevice<DEVICE extends BaseJposControl> {
                 return false;
             }
             try {
-                if (!device.getClaimed()) {
+                // Step 1b: if skipClaim, don't check getClaimed()
+                if (!deviceConnector.isSkipClaim() && !device.getClaimed()) {
                     return false;
                 }
                 int powerState = devicePower.getPowerState(device);
@@ -101,5 +105,40 @@ public class DynamicDevice<DEVICE extends BaseJposControl> {
 
     public String getDeviceName() {
         return deviceConnector.getConnectedDeviceName();
+    }
+
+    // --- Step 5b: Lifecycle pass-through to DeviceConnector ---
+
+    public DeviceConnector<DEVICE> getDeviceConnector() {
+        return deviceConnector;
+    }
+
+    public void openDevice(String logicalName) throws JposException {
+        deviceConnector.openDevice(logicalName);
+    }
+
+    public void claimDevice(int timeout) throws JposException {
+        deviceConnector.claimDevice(timeout);
+    }
+
+    public void enableDevice() throws JposException {
+        deviceConnector.enableDevice();
+        devicePower.enablePowerNotification(device);
+    }
+
+    public void disableDevice() throws JposException {
+        deviceConnector.disableDevice();
+    }
+
+    public void releaseDevice() throws JposException {
+        deviceConnector.releaseDevice();
+    }
+
+    public void closeDevice() throws JposException {
+        deviceConnector.closeDevice();
+    }
+
+    public DeviceLifecycleState getLifecycleState() {
+        return deviceConnector.getLifecycleState();
     }
 }

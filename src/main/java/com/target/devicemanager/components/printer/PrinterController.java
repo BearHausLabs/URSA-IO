@@ -1,5 +1,6 @@
 package com.target.devicemanager.components.printer;
 
+import com.target.devicemanager.common.DeviceLifecycleResponse;
 import com.target.devicemanager.common.StructuredEventLogger;
 import com.target.devicemanager.common.entities.DeviceError;
 import com.target.devicemanager.common.entities.DeviceException;
@@ -14,6 +15,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jpos.JposException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -120,5 +122,78 @@ public class PrinterController {
         DeviceException printerException = new DeviceException(PrinterError.INVALID_FORMAT);
         return new ResponseEntity<>(printerException.getDeviceError(),
                 printerException.getDeviceError().getStatusCode());
+    }
+
+    // --- Step 5e: Lifecycle endpoints ---
+
+    @Operation(description = "JPOS open — establish connection to printer")
+    @PostMapping("/printer/lifecycle/open")
+    public DeviceLifecycleResponse lifecycleOpen(@RequestParam String logicalName) throws JposException {
+        String url = "/v1/printer/lifecycle/open";
+        log.successAPI("request", 1, url, logicalName, 0);
+        printerManager.openDevice(logicalName);
+        return printerManager.getLifecycleStatus();
+    }
+
+    @Operation(description = "JPOS claim — exclusive access to printer")
+    @PostMapping("/printer/lifecycle/claim")
+    public DeviceLifecycleResponse lifecycleClaim(@RequestParam(defaultValue = "30000") int timeout) throws JposException {
+        String url = "/v1/printer/lifecycle/claim";
+        log.successAPI("request", 1, url, null, 0);
+        printerManager.claimDevice(timeout);
+        return printerManager.getLifecycleStatus();
+    }
+
+    @Operation(description = "JPOS enable — enable printer for operations")
+    @PostMapping("/printer/lifecycle/enable")
+    public DeviceLifecycleResponse lifecycleEnable() throws JposException {
+        String url = "/v1/printer/lifecycle/enable";
+        log.successAPI("request", 1, url, null, 0);
+        printerManager.enableDevice();
+        return printerManager.getLifecycleStatus();
+    }
+
+    @Operation(description = "JPOS disable — disable printer")
+    @PostMapping("/printer/lifecycle/disable")
+    public DeviceLifecycleResponse lifecycleDisable() throws JposException {
+        String url = "/v1/printer/lifecycle/disable";
+        log.successAPI("request", 1, url, null, 0);
+        printerManager.disableDevice();
+        return printerManager.getLifecycleStatus();
+    }
+
+    @Operation(description = "JPOS release — release exclusive access")
+    @PostMapping("/printer/lifecycle/release")
+    public DeviceLifecycleResponse lifecycleRelease() throws JposException {
+        String url = "/v1/printer/lifecycle/release";
+        log.successAPI("request", 1, url, null, 0);
+        printerManager.releaseDevice();
+        return printerManager.getLifecycleStatus();
+    }
+
+    @Operation(description = "JPOS close — close connection to printer")
+    @PostMapping("/printer/lifecycle/close")
+    public DeviceLifecycleResponse lifecycleClose() throws JposException {
+        String url = "/v1/printer/lifecycle/close";
+        log.successAPI("request", 1, url, null, 0);
+        printerManager.closeDevice();
+        return printerManager.getLifecycleStatus();
+    }
+
+    @Operation(description = "Get current JPOS lifecycle state")
+    @GetMapping("/printer/lifecycle")
+    public DeviceLifecycleResponse getLifecycleStatus() {
+        String url = "/v1/printer/lifecycle";
+        log.successAPI("request", 1, url, null, 0);
+        return printerManager.getLifecycleStatus();
+    }
+
+    @Operation(description = "Switch back to automatic reconnect mode")
+    @PostMapping("/printer/lifecycle/auto")
+    public DeviceLifecycleResponse lifecycleAuto() {
+        String url = "/v1/printer/lifecycle/auto";
+        log.successAPI("request", 1, url, null, 0);
+        printerManager.setAutoMode();
+        return printerManager.getLifecycleStatus();
     }
 }

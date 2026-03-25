@@ -542,4 +542,11 @@ public class PrinterDevice implements StatusUpdateListener {
     public int getTryLockTimeout() {
         return TRY_LOCK_TIMEOUT;
     }
+
+    /**
+     * Exposes the underlying DynamicDevice for lifecycle operations.
+     */
+    public DynamicDevice<? extends POSPrinter> getDynamicDevice() {
+        return dynamicPrinter;
+    }
 }

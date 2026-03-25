@@ -1,5 +1,7 @@
 package com.target.devicemanager.components.linedisplay;
 
+import com.target.devicemanager.common.DeviceLifecycleResponse;
+import com.target.devicemanager.common.DeviceLifecycleState;
 import com.target.devicemanager.common.StructuredEventLogger;
 import com.target.devicemanager.common.entities.*;
 import com.target.devicemanager.common.events.ConnectionEvent;
@@ -26,6 +28,7 @@ public class LineDisplayManager implements ConnectionEventListener {
 
     private final LineDisplayDevice lineDisplayDevice;
     private ConnectEnum connectStatus = ConnectEnum.FIRST_CONNECT;
+    private boolean manualMode = false;
     private static final Logger LOGGER = LoggerFactory.getLogger(LineDisplayManager.class);
     private static final StructuredEventLogger log = StructuredEventLogger.of(StructuredEventLogger.getLineDisplayServiceName(), "LineDisplayManager", LOGGER);
 
@@ -47,6 +50,10 @@ public class LineDisplayManager implements ConnectionEventListener {
 
     @Scheduled(fixedDelay = 5000, initialDelay = 5000)
     public void connect() {
+        if (manualMode) {
+            return;
+        }
+
         if (lineDisplayDevice.tryLock()) {
             try {
                 lineDisplayDevice.connect();
@@ -128,5 +135,61 @@ public class LineDisplayManager implements ConnectionEventListener {
         } catch (Exception exception) {
             return getHealth();
         }
+    }
+
+    // --- Step 5: Lifecycle methods ---
+
+    public void openDevice(String logicalName) throws JposException {
+        manualMode = true;
+        lineDisplayDevice.getDynamicDevice().openDevice(logicalName);
+        log.logDeviceEvent("lifecycle_open", "LineDisplay", logicalName);
+    }
+
+    public void claimDevice(int timeout) throws JposException {
+        manualMode = true;
+        lineDisplayDevice.getDynamicDevice().claimDevice(timeout);
+        log.logDeviceEvent("lifecycle_claim", "LineDisplay", lineDisplayDevice.getDeviceName());
+    }
+
+    public void enableDevice() throws JposException {
+        manualMode = true;
+        lineDisplayDevice.getDynamicDevice().enableDevice();
+        log.logDeviceEvent("lifecycle_enable", "LineDisplay", lineDisplayDevice.getDeviceName());
+    }
+
+    public void disableDevice() throws JposException {
+        manualMode = true;
+        lineDisplayDevice.getDynamicDevice().disableDevice();
+        log.logDeviceEvent("lifecycle_disable", "LineDisplay", lineDisplayDevice.getDeviceName());
+    }
+
+    public void releaseDevice() throws JposException {
+        manualMode = true;
+        lineDisplayDevice.getDynamicDevice().releaseDevice();
+        log.logDeviceEvent("lifecycle_release", "LineDisplay", lineDisplayDevice.getDeviceName());
+    }
+
+    public void closeDevice() throws JposException {
+        manualMode = true;
+        lineDisplayDevice.getDynamicDevice().closeDevice();
+        log.logDeviceEvent("lifecycle_close", "LineDisplay", lineDisplayDevice.getDeviceName());
+    }
+
+    public void setAutoMode() {
+        manualMode = false;
+        log.logDeviceEvent("lifecycle_auto", "LineDisplay", lineDisplayDevice.getDeviceName());
+    }
+
+    public DeviceLifecycleResponse getLifecycleStatus() {
+        return new DeviceLifecycleResponse(
+                lineDisplayDevice.getDynamicDevice().getLifecycleState(),
+                lineDisplayDevice.getDeviceName(),
+                manualMode,
+                "LineDisplay"
+        );
+    }
+
+    public boolean isManualMode() {
+        return manualMode;
     }
 }

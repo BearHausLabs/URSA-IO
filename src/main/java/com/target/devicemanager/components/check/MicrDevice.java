@@ -335,4 +335,11 @@ public class MicrDevice implements StatusUpdateListener, ErrorListener, DataList
     public String getDeviceName() {
         return dynamicMicr.getDeviceName();
     }
+
+    /**
+     * Exposes the underlying DynamicDevice for lifecycle operations.
+     */
+    public DynamicDevice<? extends MICR> getDynamicDevice() {
+        return dynamicMicr;
+    }
 }

@@ -8,24 +8,29 @@ import jpos.Scanner;
 import jpos.config.JposEntryRegistry;
 import jpos.loader.JposServiceLoader;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Phaser;
 import java.util.concurrent.locks.ReentrantLock;
 
 @Configuration
+@ConditionalOnProperty(name = "possum.device.scanner.enabled", havingValue = "true", matchIfMissing = true)
 class ScannerConfig {
     private final ApplicationConfig applicationConfig;
+    private final WorkstationConfig workstationConfig;
     private final SimulatedJposScanner simulatedFlatbedScanner;
     private final SimulatedJposScanner simulatedHandheldScanner;
 
     @Autowired
-    ScannerConfig(ApplicationConfig applicationConfig) {
+    ScannerConfig(ApplicationConfig applicationConfig, WorkstationConfig workstationConfig) {
         this.applicationConfig = applicationConfig;
+        this.workstationConfig = workstationConfig;
         this.simulatedFlatbedScanner = new SimulatedJposScanner(ScannerType.FLATBED);
         this.simulatedHandheldScanner = new SimulatedJposScanner(ScannerType.HANDHELD);
     }
@@ -33,6 +38,24 @@ class ScannerConfig {
     List<ScannerDevice> getScanners() {
         List<ScannerDevice> scanners = new ArrayList<>();
         JposEntryRegistry deviceRegistry = JposServiceLoader.getManager().getEntryRegistry();
+
+        // Scanner has sub-devices (flatbed, handheld) so resolve from nested config
+        WorkstationConfig.DeviceConfig scannerConfig = workstationConfig.getDeviceConfig("scanner");
+        Map<String, WorkstationConfig.DeviceConfig> subDevices = scannerConfig.getSubDevices();
+
+        String flatbedLogicalName = null;
+        String handheldLogicalName = null;
+        if (subDevices != null) {
+            WorkstationConfig.DeviceConfig flatbedConfig = subDevices.get("flatbed");
+            if (flatbedConfig != null && flatbedConfig.hasLogicalName()) {
+                flatbedLogicalName = flatbedConfig.getLogicalName();
+            }
+            WorkstationConfig.DeviceConfig handheldConfig = subDevices.get("handheld");
+            if (handheldConfig != null && handheldConfig.hasLogicalName()) {
+                handheldLogicalName = handheldConfig.getLogicalName();
+            }
+        }
+
         if (applicationConfig.IsSimulationMode()) {
             scanners.add(new ScannerDevice(
                     new ScannerDeviceListener(new EventSynchronizer(new Phaser(1))),
@@ -57,15 +80,23 @@ class ScannerConfig {
             ));
         } else {
             Scanner flatbedScanner = new Scanner();
+            DeviceConnector<Scanner> flatbedConnector = new DeviceConnector<>(flatbedScanner, deviceRegistry, new SimpleEntry<>("deviceType", "Flatbed"));
+            if (flatbedLogicalName != null) {
+                flatbedConnector.setPreferredLogicalName(flatbedLogicalName);
+            }
             scanners.add(new ScannerDevice(
                     new ScannerDeviceListener(new EventSynchronizer(new Phaser(1))),
-                    new DynamicDevice<>(flatbedScanner, new DevicePower(), new DeviceConnector<>(flatbedScanner, deviceRegistry, new SimpleEntry<>("deviceType", "Flatbed"))),
+                    new DynamicDevice<>(flatbedScanner, new DevicePower(), flatbedConnector),
                     ScannerType.FLATBED, applicationConfig));
 
             Scanner handScanner = new Scanner();
+            DeviceConnector<Scanner> handheldConnector = new DeviceConnector<>(handScanner, deviceRegistry, new SimpleEntry<>("deviceType", "HandScanner"));
+            if (handheldLogicalName != null) {
+                handheldConnector.setPreferredLogicalName(handheldLogicalName);
+            }
             scanners.add(new ScannerDevice(
                     new ScannerDeviceListener(new EventSynchronizer(new Phaser(1))),
-                    new DynamicDevice<>(handScanner, new DevicePower(), new DeviceConnector<>(handScanner, deviceRegistry, new SimpleEntry<>("deviceType", "HandScanner"))),
+                    new DynamicDevice<>(handScanner, new DevicePower(), handheldConnector),
                     ScannerType.HANDHELD, applicationConfig));
         }
 

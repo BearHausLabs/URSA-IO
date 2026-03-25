@@ -17,13 +17,11 @@ import org.mockito.quality.Strictness;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.locks.Lock;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -91,16 +89,19 @@ public class CashDrawerManagerTest {
 
     @BeforeEach
     public void testInitialize() {
-        cashDrawerManager = new CashDrawerManager(mockCashDrawerDevice, mockCashDrawerLock);
-        cashDrawerManagerCache = new CashDrawerManager(mockCashDrawerDevice, mockCashDrawerLock, mockCacheManager);
+        when(mockCashDrawerDevice.getDrawerId()).thenReturn(1);
+        when(mockCashDrawerDevice.getDrawerType()).thenReturn("DRAWER_1");
+        List<CashDrawerDevice> drawers = List.of(mockCashDrawerDevice);
+        cashDrawerManager = new CashDrawerManager(drawers, mockCashDrawerLock);
+        cashDrawerManagerCache = new CashDrawerManager(drawers, mockCashDrawerLock, mockCacheManager);
     }
 
     @Test
-    public void ctor_WhenCashDrawerDeviceAndLockAreNull_ThrowsException() {
+    public void ctor_WhenCashDrawerListAndLockAreNull_ThrowsException() {
         try {
             new CashDrawerManager(null, null);
         } catch (IllegalArgumentException iae) {
-            assertEquals("cashDrawerDevice cannot be null", iae.getMessage());
+            assertEquals("cashDrawers cannot be null or empty", iae.getMessage());
             return;
         }
 
@@ -108,11 +109,23 @@ public class CashDrawerManagerTest {
     }
 
     @Test
-    public void ctor_WhenCashDrawerDeviceIsNull_ThrowsException() {
+    public void ctor_WhenCashDrawerListIsNull_ThrowsException() {
         try {
             new CashDrawerManager(null, mockCashDrawerLock);
         } catch (IllegalArgumentException iae) {
-            assertEquals("cashDrawerDevice cannot be null", iae.getMessage());
+            assertEquals("cashDrawers cannot be null or empty", iae.getMessage());
+            return;
+        }
+
+        fail("Expected Exception, but got none");
+    }
+
+    @Test
+    public void ctor_WhenCashDrawerListIsEmpty_ThrowsException() {
+        try {
+            new CashDrawerManager(new ArrayList<>(), mockCashDrawerLock);
+        } catch (IllegalArgumentException iae) {
+            assertEquals("cashDrawers cannot be null or empty", iae.getMessage());
             return;
         }
 
@@ -122,7 +135,7 @@ public class CashDrawerManagerTest {
     @Test
     public void ctor_WhenCashDrawerLockIsNull_ThrowsException() {
         try {
-            new CashDrawerManager(mockCashDrawerDevice, null);
+            new CashDrawerManager(List.of(mockCashDrawerDevice), null);
         } catch (IllegalArgumentException iae) {
             assertEquals("cashDrawerLock cannot be null", iae.getMessage());
             return;
@@ -132,9 +145,9 @@ public class CashDrawerManagerTest {
     }
 
     @Test
-    public void ctor_WhenCashDrawerDeviceAndLockAreNotNull_DoesNotThrowException() {
+    public void ctor_WhenCashDrawerListAndLockAreNotNull_DoesNotThrowException() {
         try {
-            new CashDrawerManager(mockCashDrawerDevice, mockCashDrawerLock);
+            new CashDrawerManager(List.of(mockCashDrawerDevice), mockCashDrawerLock);
         } catch(Exception exception) {
             fail("Existing Device Argument should not result in an Exception");
         }
@@ -311,7 +324,7 @@ public class CashDrawerManagerTest {
         //assert
         assertEquals("cashDrawer", deviceHealthResponse.getDeviceName());
         assertEquals(DeviceHealth.NOTREADY, deviceHealthResponse.getHealthStatus());
-        assertEquals(expected.toString(), testCache.get("health").get().toString());
+        assertEquals(expected.toString(), testCache.get("health_1").get().toString());
     }
 
     @Test
@@ -328,7 +341,7 @@ public class CashDrawerManagerTest {
         //assert
         assertEquals("cashDrawer", deviceHealthResponse.getDeviceName());
         assertEquals(DeviceHealth.READY, deviceHealthResponse.getHealthStatus());
-        assertEquals(expected.toString(), testCache.get("health").get().toString());
+        assertEquals(expected.toString(), testCache.get("health_1").get().toString());
     }
 
     @Test
@@ -352,7 +365,7 @@ public class CashDrawerManagerTest {
         //arrange
         when(mockCacheManager.getCache("cashDrawerHealth")).thenReturn(testCache);
         DeviceHealthResponse expected = new DeviceHealthResponse("cashDrawer", DeviceHealth.READY);
-        testCache.put("health", expected);
+        testCache.put("health_1", expected);
 
         //act
         DeviceHealthResponse deviceHealthResponse = cashDrawerManagerCache.getStatus();
@@ -366,7 +379,7 @@ public class CashDrawerManagerTest {
         //arrange
         when(mockCacheManager.getCache("cashDrawerHealth")).thenReturn(testCache);
         DeviceHealthResponse expected = new DeviceHealthResponse("cashDrawer", DeviceHealth.READY);
-        testCache.put("health", expected);
+        testCache.put("health_1", expected);
 
         cashDrawerManagerCache.connect(); //set check health flag to CHECK_HEALTH
         when(mockCashDrawerDevice.isConnected()).thenReturn(true); //make sure health returns READY
@@ -422,5 +435,33 @@ public class CashDrawerManagerTest {
 
         //assert
         assertEquals(expected.toString(), deviceHealthResponse.toString());
+    }
+
+    @Test
+    public void getAllHealth_ReturnsList() {
+        //arrange
+        when(mockCashDrawerDevice.isConnected()).thenReturn(true);
+        when(mockCashDrawerDevice.getDeviceName()).thenReturn("cashDrawer");
+        when(mockCacheManager.getCache("cashDrawerHealth")).thenReturn(testCache);
+
+        //act
+        List<DeviceHealthResponse> responses = cashDrawerManagerCache.getAllHealth();
+
+        //assert
+        assertEquals(1, responses.size());
+        assertEquals(DeviceHealth.READY, responses.get(0).getHealthStatus());
+    }
+
+    @Test
+    public void openCashDrawer_WithDrawerId_OpensCorrectDrawer() throws JposException, DeviceException {
+        //arrange
+        when(mockCashDrawerLock.tryLock()).thenReturn(true);
+
+        //act
+        cashDrawerManager.openCashDrawer(1);
+
+        //assert
+        verify(mockCashDrawerDevice).openCashDrawer();
+        verify(mockCashDrawerLock).unlock();
     }
 }

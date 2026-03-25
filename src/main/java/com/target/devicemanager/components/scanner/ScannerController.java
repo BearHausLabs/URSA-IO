@@ -1,5 +1,6 @@
 package com.target.devicemanager.components.scanner;
 
+import com.target.devicemanager.common.DeviceLifecycleResponse;
 import com.target.devicemanager.common.StructuredEventLogger;
 import com.target.devicemanager.common.entities.DeviceError;
 import com.target.devicemanager.common.entities.DeviceException;
@@ -14,6 +15,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jpos.JposException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -187,5 +189,87 @@ public class ScannerController {
             log.failureAPI("API Request Failed with DeviceException", 13, url, deviceException.getDeviceError() == null ? null : deviceException.getDeviceError().toString(), deviceException.getDeviceError() == null ? 0 : deviceException.getDeviceError().getStatusCode().value(), deviceException);
             throw deviceException;
         }
+    }
+
+    // --- Step 5e: Lifecycle endpoints ---
+    // Scanner lifecycle requires a scannerType (FLATBED or HANDHELD)
+
+    @Operation(description = "JPOS open — establish connection to scanner")
+    @PostMapping("/scanner/lifecycle/open")
+    public List<DeviceLifecycleResponse> lifecycleOpen(
+            @RequestParam String logicalName,
+            @RequestParam(defaultValue = "FLATBED") ScannerType scannerType) throws JposException {
+        String url = "/v1/scanner/lifecycle/open";
+        log.successAPI("request", 1, url, logicalName, 0);
+        scannerManager.openDevice(logicalName, scannerType);
+        return scannerManager.getLifecycleStatus();
+    }
+
+    @Operation(description = "JPOS claim — exclusive access to scanner")
+    @PostMapping("/scanner/lifecycle/claim")
+    public List<DeviceLifecycleResponse> lifecycleClaim(
+            @RequestParam(defaultValue = "30000") int timeout,
+            @RequestParam(defaultValue = "FLATBED") ScannerType scannerType) throws JposException {
+        String url = "/v1/scanner/lifecycle/claim";
+        log.successAPI("request", 1, url, null, 0);
+        scannerManager.claimDevice(timeout, scannerType);
+        return scannerManager.getLifecycleStatus();
+    }
+
+    @Operation(description = "JPOS enable — enable scanner for operations")
+    @PostMapping("/scanner/lifecycle/enable")
+    public List<DeviceLifecycleResponse> lifecycleEnable(
+            @RequestParam(defaultValue = "FLATBED") ScannerType scannerType) throws JposException {
+        String url = "/v1/scanner/lifecycle/enable";
+        log.successAPI("request", 1, url, null, 0);
+        scannerManager.enableDevice(scannerType);
+        return scannerManager.getLifecycleStatus();
+    }
+
+    @Operation(description = "JPOS disable — disable scanner")
+    @PostMapping("/scanner/lifecycle/disable")
+    public List<DeviceLifecycleResponse> lifecycleDisable(
+            @RequestParam(defaultValue = "FLATBED") ScannerType scannerType) throws JposException {
+        String url = "/v1/scanner/lifecycle/disable";
+        log.successAPI("request", 1, url, null, 0);
+        scannerManager.disableDevice(scannerType);
+        return scannerManager.getLifecycleStatus();
+    }
+
+    @Operation(description = "JPOS release — release exclusive access")
+    @PostMapping("/scanner/lifecycle/release")
+    public List<DeviceLifecycleResponse> lifecycleRelease(
+            @RequestParam(defaultValue = "FLATBED") ScannerType scannerType) throws JposException {
+        String url = "/v1/scanner/lifecycle/release";
+        log.successAPI("request", 1, url, null, 0);
+        scannerManager.releaseDevice(scannerType);
+        return scannerManager.getLifecycleStatus();
+    }
+
+    @Operation(description = "JPOS close — close connection to scanner")
+    @PostMapping("/scanner/lifecycle/close")
+    public List<DeviceLifecycleResponse> lifecycleClose(
+            @RequestParam(defaultValue = "FLATBED") ScannerType scannerType) throws JposException {
+        String url = "/v1/scanner/lifecycle/close";
+        log.successAPI("request", 1, url, null, 0);
+        scannerManager.closeDevice(scannerType);
+        return scannerManager.getLifecycleStatus();
+    }
+
+    @Operation(description = "Get current JPOS lifecycle state for all scanners")
+    @GetMapping("/scanner/lifecycle")
+    public List<DeviceLifecycleResponse> getLifecycleStatus() {
+        String url = "/v1/scanner/lifecycle";
+        log.successAPI("request", 1, url, null, 0);
+        return scannerManager.getLifecycleStatus();
+    }
+
+    @Operation(description = "Switch back to automatic reconnect mode")
+    @PostMapping("/scanner/lifecycle/auto")
+    public List<DeviceLifecycleResponse> lifecycleAuto() {
+        String url = "/v1/scanner/lifecycle/auto";
+        log.successAPI("request", 1, url, null, 0);
+        scannerManager.setAutoMode();
+        return scannerManager.getLifecycleStatus();
     }
 }

@@ -1,0 +1,52 @@
+# POSSUM Workstation Configuration
+# All devices are enabled by default (matchIfMissing = true).
+# Set enabled=false to explicitly disable a device.
+# Set logicalName to skip auto-discovery and bind to a specific jpos.xml entry.
+#
+# Discovery mode: 'config' (default) uses logical names below.
+# 'auto' falls back to auto-discovery for unconfigured devices.
+#
+# Cash drawers use a dynamic list (supports 1..N drawers).
+# Scanners use sub-devices (flatbed/handheld).
+
+possum:
+  mode: config
+
+  device:
+    printer:
+      enabled: true
+      logicalName: ""          # empty = auto-discover on first run
+    cashdrawer:
+      enabled: true
+      drawers:                 # dynamic list, not fixed enum
+        - logicalName: ""
+          enabled: true
+    scanner:
+      sub-devices:
+        flatbed:
+          enabled: true
+          logicalName: ""
+        handheld:
+          enabled: true
+          logicalName: ""
+    linedisplay:
+      enabled: true
+      logicalName: ""
+    micr:
+      enabled: true
+      logicalName: ""
+    scale:
+      enabled: true
+      logicalName: ""
+    msr:
+      enabled: true
+      logicalName: ""
+    tone:
+      enabled: true
+      logicalName: ""
+    keylock:
+      enabled: true
+      logicalName: ""          # shared device -- uses skipClaim (no exclusive claim)
+    keyboard:
+      enabled: true
+      logicalName: ""          # uses skipTestCycle (no enable/disable during discovery)

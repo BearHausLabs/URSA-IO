@@ -210,6 +210,42 @@ public class DeviceAvailabilityService {
                     log.failure("Failed to Connect to " + devName, 1, null);
                 }
                 break;
+            case "cashdrawer":
+                if(deviceAvailabilitySingleton.getCashDrawerManager() != null) {
+                    healthStatus = deviceAvailabilitySingleton.getCashDrawerManager().getStatus().getHealthStatus();
+                } else {
+                    log.failure("Failed to Connect to " + devName, 1, null);
+                }
+                break;
+            case "keylock":
+                if(deviceAvailabilitySingleton.getKeylockManager() != null) {
+                    healthStatus = deviceAvailabilitySingleton.getKeylockManager().getStatus().getHealthStatus();
+                } else {
+                    log.failure("Failed to Connect to " + devName, 1, null);
+                }
+                break;
+            case "keyboard":
+                if(deviceAvailabilitySingleton.getKeyboardManager() != null) {
+                    healthStatus = deviceAvailabilitySingleton.getKeyboardManager().getStatus().getHealthStatus();
+                } else {
+                    log.failure("Failed to Connect to " + devName, 1, null);
+                }
+                break;
+            case "msr":
+                if(deviceAvailabilitySingleton.getMsrManager() != null) {
+                    healthStatus = deviceAvailabilitySingleton.getMsrManager().getStatus().getHealthStatus();
+                } else {
+                    log.failure("Failed to Connect to " + devName, 1, null);
+                }
+                break;
+            case "tone":
+            case "toneindicator":
+                if(deviceAvailabilitySingleton.getToneManager() != null) {
+                    healthStatus = deviceAvailabilitySingleton.getToneManager().getStatus().getHealthStatus();
+                } else {
+                    log.failure("Failed to Connect to " + devName, 1, null);
+                }
+                break;
             default:
                 log.failure("Not a known device: " + devName, 1, null);
         }
@@ -243,7 +279,7 @@ public class DeviceAvailabilityService {
             return ResponseEntity.ok(responseList);
         }
         if(DeviceAvailabilitySingleton.getDeviceAvailabilitySingleton().getCashDrawerManager() != null) {
-            responseList.add(DeviceAvailabilitySingleton.getDeviceAvailabilitySingleton().getCashDrawerManager().getHealth());
+            responseList.addAll(DeviceAvailabilitySingleton.getDeviceAvailabilitySingleton().getCashDrawerManager().getAllHealth());
         }
         if(DeviceAvailabilitySingleton.getDeviceAvailabilitySingleton().getMicrManager() != null) {
             responseList.add(DeviceAvailabilitySingleton.getDeviceAvailabilitySingleton().getMicrManager().getHealth());
@@ -260,6 +296,18 @@ public class DeviceAvailabilityService {
         }
         if(DeviceAvailabilitySingleton.getDeviceAvailabilitySingleton().getScannerManager() != null) {
                 responseList.addAll(DeviceAvailabilitySingleton.getDeviceAvailabilitySingleton().getScannerManager().getHealth(ScannerType.BOTH));
+        }
+        if(DeviceAvailabilitySingleton.getDeviceAvailabilitySingleton().getKeylockManager() != null) {
+            responseList.add(DeviceAvailabilitySingleton.getDeviceAvailabilitySingleton().getKeylockManager().getHealth());
+        }
+        if(DeviceAvailabilitySingleton.getDeviceAvailabilitySingleton().getKeyboardManager() != null) {
+            responseList.add(DeviceAvailabilitySingleton.getDeviceAvailabilitySingleton().getKeyboardManager().getHealth());
+        }
+        if(DeviceAvailabilitySingleton.getDeviceAvailabilitySingleton().getMsrManager() != null) {
+            responseList.add(DeviceAvailabilitySingleton.getDeviceAvailabilitySingleton().getMsrManager().getHealth());
+        }
+        if(DeviceAvailabilitySingleton.getDeviceAvailabilitySingleton().getToneManager() != null) {
+            responseList.add(DeviceAvailabilitySingleton.getDeviceAvailabilitySingleton().getToneManager().getHealth());
         }
         return ResponseEntity.ok(responseList);
     }

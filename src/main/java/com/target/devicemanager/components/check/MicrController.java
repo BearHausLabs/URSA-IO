@@ -1,5 +1,6 @@
 package com.target.devicemanager.components.check;
 
+import com.target.devicemanager.common.DeviceLifecycleResponse;
 import com.target.devicemanager.common.StructuredEventLogger;
 import com.target.devicemanager.common.entities.DeviceError;
 import com.target.devicemanager.common.entities.DeviceException;
@@ -19,6 +20,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jpos.JposException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -172,5 +174,78 @@ public class MicrController {
         log.successAPI("request", 1, url, null, 0);
         DeviceHealthResponse response = micrManager.getStatus();
         return response;
+    }
+
+    // --- Step 5e: Lifecycle endpoints ---
+
+    @Operation(description = "JPOS open — establish connection to MICR")
+    @PostMapping("/check/lifecycle/open")
+    public DeviceLifecycleResponse lifecycleOpen(@RequestParam String logicalName) throws JposException {
+        String url = "/v1/check/lifecycle/open";
+        log.successAPI("request", 1, url, logicalName, 0);
+        micrManager.openDevice(logicalName);
+        return micrManager.getLifecycleStatus();
+    }
+
+    @Operation(description = "JPOS claim — exclusive access to MICR")
+    @PostMapping("/check/lifecycle/claim")
+    public DeviceLifecycleResponse lifecycleClaim(@RequestParam(defaultValue = "30000") int timeout) throws JposException {
+        String url = "/v1/check/lifecycle/claim";
+        log.successAPI("request", 1, url, null, 0);
+        micrManager.claimDevice(timeout);
+        return micrManager.getLifecycleStatus();
+    }
+
+    @Operation(description = "JPOS enable — enable MICR for operations")
+    @PostMapping("/check/lifecycle/enable")
+    public DeviceLifecycleResponse lifecycleEnable() throws JposException {
+        String url = "/v1/check/lifecycle/enable";
+        log.successAPI("request", 1, url, null, 0);
+        micrManager.enableDevice();
+        return micrManager.getLifecycleStatus();
+    }
+
+    @Operation(description = "JPOS disable — disable MICR")
+    @PostMapping("/check/lifecycle/disable")
+    public DeviceLifecycleResponse lifecycleDisable() throws JposException {
+        String url = "/v1/check/lifecycle/disable";
+        log.successAPI("request", 1, url, null, 0);
+        micrManager.disableDevice();
+        return micrManager.getLifecycleStatus();
+    }
+
+    @Operation(description = "JPOS release — release exclusive access")
+    @PostMapping("/check/lifecycle/release")
+    public DeviceLifecycleResponse lifecycleRelease() throws JposException {
+        String url = "/v1/check/lifecycle/release";
+        log.successAPI("request", 1, url, null, 0);
+        micrManager.releaseDevice();
+        return micrManager.getLifecycleStatus();
+    }
+
+    @Operation(description = "JPOS close — close connection to MICR")
+    @PostMapping("/check/lifecycle/close")
+    public DeviceLifecycleResponse lifecycleClose() throws JposException {
+        String url = "/v1/check/lifecycle/close";
+        log.successAPI("request", 1, url, null, 0);
+        micrManager.closeDevice();
+        return micrManager.getLifecycleStatus();
+    }
+
+    @Operation(description = "Get current JPOS lifecycle state")
+    @GetMapping("/check/lifecycle")
+    public DeviceLifecycleResponse getLifecycleStatus() {
+        String url = "/v1/check/lifecycle";
+        log.successAPI("request", 1, url, null, 0);
+        return micrManager.getLifecycleStatus();
+    }
+
+    @Operation(description = "Switch back to automatic reconnect mode")
+    @PostMapping("/check/lifecycle/auto")
+    public DeviceLifecycleResponse lifecycleAuto() {
+        String url = "/v1/check/lifecycle/auto";
+        log.successAPI("request", 1, url, null, 0);
+        micrManager.setAutoMode();
+        return micrManager.getLifecycleStatus();
     }
 }

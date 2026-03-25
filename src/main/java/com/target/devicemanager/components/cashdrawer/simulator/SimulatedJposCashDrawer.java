@@ -15,10 +15,20 @@ public class SimulatedJposCashDrawer extends CashDrawer {
     private CashDrawerStatus cashDrawerStatus;
     private SimulatorState simulatorState;
     private int statusUpdateStatus = JposConst.JPOS_SUE_POWER_OFF_OFFLINE;
+    private final int drawerId;
 
     public SimulatedJposCashDrawer() {
+        this(1);
+    }
+
+    public SimulatedJposCashDrawer(int drawerId) {
+        this.drawerId = drawerId;
         simulatorState = SimulatorState.ONLINE;
         this.cashDrawerStatus = CashDrawerStatus.DRAWER_CLOSED;
+    }
+
+    public int getDrawerId() {
+        return drawerId;
     }
 
     void setState(SimulatorState simulatorState) {
@@ -95,6 +105,11 @@ public class SimulatedJposCashDrawer extends CashDrawer {
     @Override
     public void setDeviceEnabled(boolean value) {
         //doNothing
+    }
+
+    @Override
+    public String getPhysicalDeviceName() {
+        return "DRAWER_" + drawerId;
     }
 
     private void triggerStatusUpdateEvent() {

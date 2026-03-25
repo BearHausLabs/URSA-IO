@@ -1,5 +1,7 @@
 package com.target.devicemanager.components.printer;
 
+import com.target.devicemanager.common.DeviceLifecycleResponse;
+import com.target.devicemanager.common.DeviceLifecycleState;
 import com.target.devicemanager.common.LogPayloadBuilder;
 import com.target.devicemanager.common.StructuredEventLogger;
 import com.target.devicemanager.common.entities.*;
@@ -33,6 +35,7 @@ public class PrinterManager {
     private final Lock printerLock;
     private static final int PRINTER_TIMEOUT = 10;  // Timeout value for printContent call in seconds
     private ConnectEnum connectStatus = ConnectEnum.FIRST_CONNECT;
+    private boolean manualMode = false;
     private static final Logger LOGGER = LoggerFactory.getLogger(PrinterManager.class);
     private static final StructuredEventLogger log = StructuredEventLogger.of(StructuredEventLogger.getPrinterServiceName(), "PrinterManager", LOGGER);
 
@@ -58,6 +61,10 @@ public class PrinterManager {
 
     @Scheduled(fixedDelay = 5000, initialDelay = 5000)
     public void connect() {
+        if (manualMode) {
+            return;
+        }
+
         if (printerDevice.tryLock()) {
             try {
                 printerDevice.connect();
@@ -193,5 +200,61 @@ public class PrinterManager {
 
     public static int getPrinterTimeoutValue() {
         return PRINTER_TIMEOUT;
+    }
+
+    // --- Step 5: Lifecycle methods ---
+
+    public void openDevice(String logicalName) throws JposException {
+        manualMode = true;
+        printerDevice.getDynamicDevice().openDevice(logicalName);
+        log.logDeviceEvent("lifecycle_open", "Printer", logicalName);
+    }
+
+    public void claimDevice(int timeout) throws JposException {
+        manualMode = true;
+        printerDevice.getDynamicDevice().claimDevice(timeout);
+        log.logDeviceEvent("lifecycle_claim", "Printer", printerDevice.getDeviceName());
+    }
+
+    public void enableDevice() throws JposException {
+        manualMode = true;
+        printerDevice.getDynamicDevice().enableDevice();
+        log.logDeviceEvent("lifecycle_enable", "Printer", printerDevice.getDeviceName());
+    }
+
+    public void disableDevice() throws JposException {
+        manualMode = true;
+        printerDevice.getDynamicDevice().disableDevice();
+        log.logDeviceEvent("lifecycle_disable", "Printer", printerDevice.getDeviceName());
+    }
+
+    public void releaseDevice() throws JposException {
+        manualMode = true;
+        printerDevice.getDynamicDevice().releaseDevice();
+        log.logDeviceEvent("lifecycle_release", "Printer", printerDevice.getDeviceName());
+    }
+
+    public void closeDevice() throws JposException {
+        manualMode = true;
+        printerDevice.getDynamicDevice().closeDevice();
+        log.logDeviceEvent("lifecycle_close", "Printer", printerDevice.getDeviceName());
+    }
+
+    public void setAutoMode() {
+        manualMode = false;
+        log.logDeviceEvent("lifecycle_auto", "Printer", printerDevice.getDeviceName());
+    }
+
+    public DeviceLifecycleResponse getLifecycleStatus() {
+        return new DeviceLifecycleResponse(
+                printerDevice.getDynamicDevice().getLifecycleState(),
+                printerDevice.getDeviceName(),
+                manualMode,
+                "Printer"
+        );
+    }
+
+    public boolean isManualMode() {
+        return manualMode;
     }
 }

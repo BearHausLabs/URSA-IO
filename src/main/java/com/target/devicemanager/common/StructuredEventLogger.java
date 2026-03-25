@@ -2,6 +2,7 @@ package com.target.devicemanager.common;
 
 import com.target.devicemanager.common.entities.LogField;
 import org.slf4j.Logger;
+import java.util.Map;
 import java.util.Objects;
 
 public class StructuredEventLogger {
@@ -19,6 +20,8 @@ public class StructuredEventLogger {
     private static final String SCALE = "scale";
     private static final String SCANNER = "scanner";
     private static final String DEVICE_MANAGER = "device_manager";
+    private static final String MSR = "msr";
+    private static final String TONE_INDICATOR = "tone_indicator";
     private static final String COMMON = "common";
     private static final String CONFIGURATION = "configuration";
 
@@ -163,7 +166,55 @@ public class StructuredEventLogger {
         return COMMON;
     }
 
+    public static String getMsrServiceName(){
+        return MSR;
+    }
+
+    public static String getToneIndicatorServiceName(){
+        return TONE_INDICATOR;
+    }
+
     public static String getConfigurationServiceName(){
         return CONFIGURATION;
+    }
+
+    // --- Step 2: Device event logging helpers ---
+
+    /**
+     * Log a structured device event (connect, disconnect, lifecycle transition, etc.)
+     */
+    public void logDeviceEvent(String event, String deviceType, String logicalName) {
+        logDeviceEvent(event, deviceType, logicalName, null);
+    }
+
+    /**
+     * Log a structured device event with extra key-value pairs.
+     */
+    public void logDeviceEvent(String event, String deviceType, String logicalName, Map<String, Object> extra) {
+        LogPayloadBuilder b = base(event, "success", 9)
+                .add(LogField.MESSAGE, event + " " + deviceType + " '" + logicalName + "'");
+
+        // Add device-specific fields into the payload via the message
+        // Extra fields are appended to the message for structured context
+        if (extra != null && !extra.isEmpty()) {
+            StringBuilder sb = new StringBuilder();
+            sb.append(event).append(" ").append(deviceType).append(" '").append(logicalName).append("'");
+            extra.forEach((k, v) -> sb.append(" ").append(k).append("=").append(v));
+            b = base(event, "success", 9)
+                    .add(LogField.MESSAGE, sb.toString());
+        }
+
+        emitBySeverity(b, 9);
+    }
+
+    /**
+     * Log a structured device error event.
+     */
+    public void logDeviceError(String event, String deviceType, String logicalName, Exception ex) {
+        LogPayloadBuilder b = base(event, "failure", 17)
+                .add(LogField.MESSAGE, event + " " + deviceType + " '" + logicalName + "'");
+
+        addThrowableFields(b, ex);
+        emitBySeverity(b, 17);
     }
 }

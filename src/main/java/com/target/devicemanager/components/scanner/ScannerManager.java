@@ -1,5 +1,7 @@
 package com.target.devicemanager.components.scanner;
 
+import com.target.devicemanager.common.DeviceLifecycleResponse;
+import com.target.devicemanager.common.DeviceLifecycleState;
 import com.target.devicemanager.common.StructuredEventLogger;
 import com.target.devicemanager.common.entities.*;
 import com.target.devicemanager.components.scanner.entities.Barcode;
@@ -31,6 +33,7 @@ public class ScannerManager {
     private final List<? extends ScannerDevice> scanners;
     private final Lock scannerLock;
     private ConnectEnum connectStatus = ConnectEnum.FIRST_CONNECT;
+    private boolean manualMode = false;
     private static final Logger LOGGER = LoggerFactory.getLogger(ScannerManager.class);
     private static final StructuredEventLogger log = StructuredEventLogger.of(StructuredEventLogger.getScannerServiceName(), "ScannerManager", LOGGER);
     private ExecutorService executor;
@@ -62,6 +65,10 @@ public class ScannerManager {
 
     @Scheduled(fixedDelay = 5000, initialDelay = 5000)
     public void connect() {
+        if (manualMode) {
+            return;
+        }
+
         scanners.forEach(ScannerDevice::connect);
 
         if (connectStatus == ConnectEnum.FIRST_CONNECT) {
@@ -270,5 +277,99 @@ public class ScannerManager {
             throw interruptedException;
         }
         log.success("disableScanner(out)", 1);
+    }
+
+    // --- Step 5: Lifecycle methods ---
+    // Scanner has multiple devices; lifecycle operates on a specific type.
+
+    private ScannerDevice findScanner(ScannerType scannerType) {
+        for (ScannerDevice scanner : scanners) {
+            if (scannerType == ScannerType.BOTH || scanner.getScannerType().equals(scannerType.name())) {
+                return scanner;
+            }
+        }
+        return null;
+    }
+
+    public void openDevice(String logicalName, ScannerType scannerType) throws JposException {
+        manualMode = true;
+        ScannerDevice scanner = findScanner(scannerType);
+        if (scanner == null) {
+            throw new JposException(jpos.JposConst.JPOS_E_NOEXIST, "Scanner type not found: " + scannerType);
+        }
+        scanner.getDynamicDevice().openDevice(logicalName);
+        log.logDeviceEvent("lifecycle_open", "Scanner/" + scannerType, logicalName);
+    }
+
+    public void claimDevice(int timeout, ScannerType scannerType) throws JposException {
+        manualMode = true;
+        ScannerDevice scanner = findScanner(scannerType);
+        if (scanner == null) {
+            throw new JposException(jpos.JposConst.JPOS_E_NOEXIST, "Scanner type not found: " + scannerType);
+        }
+        scanner.getDynamicDevice().claimDevice(timeout);
+        log.logDeviceEvent("lifecycle_claim", "Scanner/" + scannerType, scanner.getDeviceName());
+    }
+
+    public void enableDevice(ScannerType scannerType) throws JposException {
+        manualMode = true;
+        ScannerDevice scanner = findScanner(scannerType);
+        if (scanner == null) {
+            throw new JposException(jpos.JposConst.JPOS_E_NOEXIST, "Scanner type not found: " + scannerType);
+        }
+        scanner.getDynamicDevice().enableDevice();
+        log.logDeviceEvent("lifecycle_enable", "Scanner/" + scannerType, scanner.getDeviceName());
+    }
+
+    public void disableDevice(ScannerType scannerType) throws JposException {
+        manualMode = true;
+        ScannerDevice scanner = findScanner(scannerType);
+        if (scanner == null) {
+            throw new JposException(jpos.JposConst.JPOS_E_NOEXIST, "Scanner type not found: " + scannerType);
+        }
+        scanner.getDynamicDevice().disableDevice();
+        log.logDeviceEvent("lifecycle_disable", "Scanner/" + scannerType, scanner.getDeviceName());
+    }
+
+    public void releaseDevice(ScannerType scannerType) throws JposException {
+        manualMode = true;
+        ScannerDevice scanner = findScanner(scannerType);
+        if (scanner == null) {
+            throw new JposException(jpos.JposConst.JPOS_E_NOEXIST, "Scanner type not found: " + scannerType);
+        }
+        scanner.getDynamicDevice().releaseDevice();
+        log.logDeviceEvent("lifecycle_release", "Scanner/" + scannerType, scanner.getDeviceName());
+    }
+
+    public void closeDevice(ScannerType scannerType) throws JposException {
+        manualMode = true;
+        ScannerDevice scanner = findScanner(scannerType);
+        if (scanner == null) {
+            throw new JposException(jpos.JposConst.JPOS_E_NOEXIST, "Scanner type not found: " + scannerType);
+        }
+        scanner.getDynamicDevice().closeDevice();
+        log.logDeviceEvent("lifecycle_close", "Scanner/" + scannerType, scanner.getDeviceName());
+    }
+
+    public void setAutoMode() {
+        manualMode = false;
+        log.logDeviceEvent("lifecycle_auto", "Scanner", "all");
+    }
+
+    public List<DeviceLifecycleResponse> getLifecycleStatus() {
+        List<DeviceLifecycleResponse> responses = new ArrayList<>();
+        for (ScannerDevice scanner : scanners) {
+            responses.add(new DeviceLifecycleResponse(
+                    scanner.getDynamicDevice().getLifecycleState(),
+                    scanner.getDeviceName(),
+                    manualMode,
+                    "Scanner/" + scanner.getScannerType()
+            ));
+        }
+        return responses;
+    }
+
+    public boolean isManualMode() {
+        return manualMode;
     }
 }

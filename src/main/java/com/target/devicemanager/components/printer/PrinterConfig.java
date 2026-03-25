@@ -7,6 +7,7 @@ import jpos.POSPrinter;
 import jpos.config.JposEntryRegistry;
 import jpos.loader.JposServiceLoader;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -14,28 +15,36 @@ import java.util.concurrent.Phaser;
 import java.util.concurrent.locks.ReentrantLock;
 
 @Configuration
+@ConditionalOnProperty(name = "possum.device.printer.enabled", havingValue = "true", matchIfMissing = true)
 class PrinterConfig {
     private final SimulatedJposPrinter simulatedPrinter;
     private final ApplicationConfig applicationConfig;
+    private final WorkstationConfig workstationConfig;
 
     @Autowired
-    PrinterConfig(ApplicationConfig applicationConfig) {
+    PrinterConfig(ApplicationConfig applicationConfig, WorkstationConfig workstationConfig) {
 
         this.simulatedPrinter = new SimulatedJposPrinter();
         this.applicationConfig = applicationConfig;
+        this.workstationConfig = workstationConfig;
     }
 
     @Bean
     public PrinterManager getReceiptPrinterManager() {
         DynamicDevice<? extends POSPrinter> dynamicPrinter;
         JposEntryRegistry deviceRegistry = JposServiceLoader.getManager().getEntryRegistry();
+        WorkstationConfig.DeviceConfig deviceConfig = workstationConfig.getDeviceConfig("printer");
 
         if (applicationConfig.IsSimulationMode()) {
             dynamicPrinter = new SimulatedDynamicDevice<>(simulatedPrinter, new DevicePower(), new DeviceConnector<>(simulatedPrinter, deviceRegistry));
 
         } else {
             POSPrinter posPrinter = new POSPrinter();
-            dynamicPrinter = new DynamicDevice<>(posPrinter, new DevicePower(), new DeviceConnector<>(posPrinter, deviceRegistry));
+            DeviceConnector<POSPrinter> connector = new DeviceConnector<>(posPrinter, deviceRegistry);
+            if (deviceConfig.hasLogicalName()) {
+                connector.setPreferredLogicalName(deviceConfig.getLogicalName());
+            }
+            dynamicPrinter = new DynamicDevice<>(posPrinter, new DevicePower(), connector);
         }
 
         PrinterManager printerManager = new PrinterManager(
