@@ -41,6 +41,7 @@ class LineDisplayConfig {
             DeviceConnector<LineDisplay> connector = new DeviceConnector<>(lineDisplay, deviceRegistry);
             if (deviceConfig.hasLogicalName()) {
                 connector.setPreferredLogicalName(deviceConfig.getLogicalName());
+                connector.setSkipTestCycle(true);
             }
             dynamicLineDisplay = new DynamicDevice<>(lineDisplay, new DevicePower(), connector);
         }

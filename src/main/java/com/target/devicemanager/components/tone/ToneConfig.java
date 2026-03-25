@@ -42,6 +42,7 @@ class ToneConfig {
             DeviceConnector<ToneIndicator> connector = new DeviceConnector<>(toneIndicator, deviceRegistry);
             if (deviceConfig.hasLogicalName()) {
                 connector.setPreferredLogicalName(deviceConfig.getLogicalName());
+                connector.setSkipTestCycle(true);
             }
             dynamicTone = new DynamicDevice<>(toneIndicator, new DevicePower(), connector);
         }

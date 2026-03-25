@@ -40,6 +40,7 @@ class MicrConfig {
             DeviceConnector<MICR> connector = new DeviceConnector<>(micr, deviceRegistry);
             if (deviceConfig.hasLogicalName()) {
                 connector.setPreferredLogicalName(deviceConfig.getLogicalName());
+                connector.setSkipTestCycle(true);
             }
             dynamicMicr = new DynamicDevice<>(micr, new DevicePower(), connector);
         }

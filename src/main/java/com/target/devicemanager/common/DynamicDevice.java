@@ -51,6 +51,19 @@ public class DynamicDevice<DEVICE extends BaseJposControl> {
             }
 
             devicePower.enablePowerNotification(device);
+
+            // When skipTestCycle is true, discovery leaves the device at CLAIMED.
+            // Enable it here so auto-mode reaches ENABLED through one clean path,
+            // avoiding the test-enable/disable gap that causes vendor driver issues
+            // (e.g. Epson "Power offline" race condition).
+            if (deviceConnector.isSkipTestCycle()) {
+                try {
+                    device.setDeviceEnabled(true);
+                    log.success(getDeviceName() + " auto-enabled (skipTestCycle)", 9);
+                } catch (JposException jposException) {
+                    log.failure(getDeviceName() + " auto-enable failed: " + jposException.getErrorCode(), 13, jposException);
+                }
+            }
         }
         log.success(getDeviceName() + " Connect Succeeded: " + connectCount, 9);
         connectCount = 0;

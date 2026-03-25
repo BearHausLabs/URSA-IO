@@ -83,6 +83,7 @@ class ScannerConfig {
             DeviceConnector<Scanner> flatbedConnector = new DeviceConnector<>(flatbedScanner, deviceRegistry, new SimpleEntry<>("deviceType", "Flatbed"));
             if (flatbedLogicalName != null) {
                 flatbedConnector.setPreferredLogicalName(flatbedLogicalName);
+                flatbedConnector.setSkipTestCycle(true);
             }
             scanners.add(new ScannerDevice(
                     new ScannerDeviceListener(new EventSynchronizer(new Phaser(1))),
@@ -93,6 +94,7 @@ class ScannerConfig {
             DeviceConnector<Scanner> handheldConnector = new DeviceConnector<>(handScanner, deviceRegistry, new SimpleEntry<>("deviceType", "HandScanner"));
             if (handheldLogicalName != null) {
                 handheldConnector.setPreferredLogicalName(handheldLogicalName);
+                handheldConnector.setSkipTestCycle(true);
             }
             scanners.add(new ScannerDevice(
                     new ScannerDeviceListener(new EventSynchronizer(new Phaser(1))),

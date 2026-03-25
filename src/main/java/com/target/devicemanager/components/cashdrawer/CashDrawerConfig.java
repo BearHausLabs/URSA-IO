@@ -77,6 +77,7 @@ class CashDrawerConfig {
                 DeviceConnector<CashDrawer> connector = new DeviceConnector<>(cashDrawer, deviceRegistry);
                 if (entry.hasLogicalName()) {
                     connector.setPreferredLogicalName(entry.getLogicalName());
+                    connector.setSkipTestCycle(true);
                 }
                 drawers.add(new CashDrawerDevice(
                         new DynamicDevice<>(cashDrawer, new DevicePower(), connector),

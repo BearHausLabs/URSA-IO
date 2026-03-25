@@ -43,6 +43,7 @@ class PrinterConfig {
             DeviceConnector<POSPrinter> connector = new DeviceConnector<>(posPrinter, deviceRegistry);
             if (deviceConfig.hasLogicalName()) {
                 connector.setPreferredLogicalName(deviceConfig.getLogicalName());
+                connector.setSkipTestCycle(true);
             }
             dynamicPrinter = new DynamicDevice<>(posPrinter, new DevicePower(), connector);
         }

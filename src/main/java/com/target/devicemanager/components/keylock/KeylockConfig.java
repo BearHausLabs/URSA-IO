@@ -43,6 +43,7 @@ class KeylockConfig {
             DeviceConnector<Keylock> connector = new DeviceConnector<>(keylock, deviceRegistry);
             if (deviceConfig.hasLogicalName()) {
                 connector.setPreferredLogicalName(deviceConfig.getLogicalName());
+                connector.setSkipTestCycle(true);
             }
             // Keylocks are shared devices -- skip exclusive claim
             connector.setSkipClaim(true);

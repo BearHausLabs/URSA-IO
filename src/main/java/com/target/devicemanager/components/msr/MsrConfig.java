@@ -43,6 +43,7 @@ class MsrConfig {
             DeviceConnector<MSR> connector = new DeviceConnector<>(msr, deviceRegistry);
             if (deviceConfig.hasLogicalName()) {
                 connector.setPreferredLogicalName(deviceConfig.getLogicalName());
+                connector.setSkipTestCycle(true);
             }
             dynamicMsr = new DynamicDevice<>(msr, new DevicePower(), connector);
         }

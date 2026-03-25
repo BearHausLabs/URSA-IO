@@ -42,6 +42,7 @@ class ScaleConfig {
             DeviceConnector<Scale> connector = new DeviceConnector<>(scale, deviceRegistry);
             if (deviceConfig.hasLogicalName()) {
                 connector.setPreferredLogicalName(deviceConfig.getLogicalName());
+                connector.setSkipTestCycle(true);
             }
             dynamicScale = new DynamicDevice<>(scale, new DevicePower(), connector);
         }
