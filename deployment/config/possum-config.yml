@@ -12,7 +12,7 @@ possum:
           enabled: false
         handheld:
           enabled: true
-          logicalName: "ZebraAllScanners114"
+          logicalName: "ZebraUSBOPOS"
     linedisplay:
       enabled: false
     micr:
