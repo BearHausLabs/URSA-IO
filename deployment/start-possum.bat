@@ -11,6 +11,9 @@ set "POSSUM_PORT=8080"
 REM --- Profile (default: local) ---
 if not defined SPRING_PROFILES_ACTIVE set "SPRING_PROFILES_ACTIVE=local"
 
+REM --- CORS (allow all origins in local/dev for cross-register access) ---
+if not defined CORS_ORIGINS set "CORS_ORIGINS=*"
+
 REM --- Find Java ---
 if defined JAVA_HOME (
     if exist "%JAVA_HOME%\bin\java.exe" goto :java_found
