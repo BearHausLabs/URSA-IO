@@ -291,17 +291,36 @@ public class DeviceConnector<T extends BaseJposControl> {
         List<String> result = list
                 .stream()
                 .filter(x -> {
-                    String deviceCategory = x.getPropertyValue("deviceCategory").toString();
+                    Object categoryObj = x.getPropertyValue("deviceCategory");
+                    if (categoryObj == null) return false;
+                    String deviceCategory = categoryObj.toString();
                     Class<? extends BaseJposControl> deviceClass = device.getClass();
                     return deviceCategory.equals(deviceClass.getSimpleName());
                 })
                 .filter(x -> {
                     if (customFilter == null) return true;
 
-                    String customFilterValue = x.getPropertyValue(customFilter.getKey()).toString();
-                    return customFilter.getValue().equals(customFilterValue);
+                    String filterKey = customFilter.getKey();
+                    String filterValue = customFilter.getValue();
+                    if (filterKey == null || filterValue == null) return true;
+
+                    Object filterObj = x.getPropertyValue(filterKey);
+                    if (filterObj == null) {
+                        // Log a warning for Scanner entries missing deviceType — common
+                        // when vendor jpos.xml wasn't merged through configure-io.ps1
+                        Object nameObj = x.getPropertyValue("logicalName");
+                        String entryName = nameObj != null ? nameObj.toString() : "(unknown)";
+                        log.failure("entry '" + entryName + "' missing property '" + filterKey +
+                                "' — skipped (vendor jpos.xml may need deviceType injection)", 9, null);
+                        return false;
+                    }
+                    return filterValue.equals(filterObj.toString());
                 })
-                .map(x -> x.getPropertyValue("logicalName").toString())
+                .map(x -> {
+                    Object nameObj = x.getPropertyValue("logicalName");
+                    return nameObj != null ? nameObj.toString() : null;
+                })
+                .filter(Objects::nonNull)
                 .collect(Collectors.toCollection(ArrayList::new));
 
         if (result.isEmpty()) {

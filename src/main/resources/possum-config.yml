@@ -12,6 +12,14 @@
 possum:
   mode: config
 
+  # Vendor jpos.xml paths to merge into devcon.xml on every startup.
+  # Entries from these files are merged (by logicalName) into config/devcon.xml
+  # so all vendor devices are discoverable. Scanner entries without a deviceType
+  # property get one injected automatically (Flatbed or HandScanner).
+  # Paths that don't exist are silently skipped.
+  vendor-jpos-paths:
+    - C:/POS/JavaPOS/jpos.xml
+
   # Lifecycle mode:
   #   'manual' (default) — POSSUM only discovers/configures devices.
   #     The POS application (URSA) controls open/claim/enable via /lifecycle endpoints.

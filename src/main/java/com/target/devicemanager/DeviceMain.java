@@ -14,14 +14,14 @@ import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -30,6 +30,12 @@ import java.util.regex.Pattern;
 public class DeviceMain {
     private static final Logger LOGGER = LoggerFactory.getLogger(DeviceMain.class);
     private static final StructuredEventLogger log = StructuredEventLogger.of(StructuredEventLogger.getDeviceManagerServiceName(), "DeviceMain", LOGGER);
+
+    /** Known locations for possum-config.yml (in priority order). */
+    private static final String[] CONFIG_LOCATIONS = {
+            "config/possum-config.yml",
+            "possum-config.yml"
+    };
 
     public static void main(String[] args) {
         // JCL configuration: let deploy-time jpos/res/jpos.properties control
@@ -63,6 +69,10 @@ public class DeviceMain {
                         "JCL will rely on jpos/res/jpos.properties for populator file paths.");
             }
         }
+        // Merge vendor jpos.xml entries into devcon.xml BEFORE Spring starts.
+        // This ensures the JCL populator reads a complete device registry.
+        mergeVendorJposEntries();
+
         System.setProperty("jpos.util.tracing.TurnOnAllNamedTracers", "OFF");
         ConfigurableApplicationContext dmcontext = SpringApplication.run(DeviceMain.class,args);
     }
@@ -214,6 +224,203 @@ public class DeviceMain {
             log.failure("Failed reading core dump file" + logfile.getName() + ioException.getMessage(), 17, ioException);
         }
         return coreDumpInfo;
+    }
+
+    // -------------------------------------------------------------------------
+    // Vendor jpos.xml merge — runs before Spring Boot starts
+    // -------------------------------------------------------------------------
+
+    /**
+     * Reads vendor jpos.xml paths from possum-config.yml (or POSSUM_VENDOR_JPOS_PATHS
+     * env var), parses JposEntry elements from each, and merges them into config/devcon.xml.
+     * Scanner entries without a deviceType property get one injected automatically.
+     * Duplicates (by logicalName) are skipped — existing devcon.xml entries win.
+     *
+     * This runs in main() before Spring Boot starts, so the JCL populator reads
+     * a complete device registry on first load.
+     */
+    private static void mergeVendorJposEntries() {
+        File devconFile = new File("config/devcon.xml");
+        if (!devconFile.exists()) {
+            LOGGER.info("config/devcon.xml not found — skipping vendor merge");
+            return;
+        }
+
+        List<String> vendorPaths = getVendorJposPaths();
+        if (vendorPaths.isEmpty()) {
+            LOGGER.info("No vendor jpos.xml paths configured — skipping vendor merge");
+            return;
+        }
+
+        try {
+            // Parse existing devcon.xml entries (keyed by logicalName)
+            String devconContent = Files.readString(devconFile.toPath(), StandardCharsets.UTF_8);
+            LinkedHashMap<String, String> entries = parseJposEntries(devconContent);
+            int originalCount = entries.size();
+
+            // Parse and merge each vendor file
+            int vendorEntriesAdded = 0;
+            for (String vendorPath : vendorPaths) {
+                File vendorFile = new File(vendorPath);
+                if (!vendorFile.exists()) {
+                    LOGGER.debug("Vendor jpos.xml not found (skipped): {}", vendorPath);
+                    continue;
+                }
+
+                String vendorContent = Files.readString(vendorFile.toPath(), StandardCharsets.UTF_8);
+                LinkedHashMap<String, String> vendorEntries = parseJposEntries(vendorContent);
+                LOGGER.info("Vendor jpos.xml {} has {} entries", vendorPath, vendorEntries.size());
+
+                for (Map.Entry<String, String> ve : vendorEntries.entrySet()) {
+                    if (!entries.containsKey(ve.getKey())) {
+                        entries.put(ve.getKey(), ve.getValue());
+                        vendorEntriesAdded++;
+                        LOGGER.info("  Merged vendor entry: {}", ve.getKey());
+                    } else {
+                        LOGGER.debug("  Skipped duplicate: {}", ve.getKey());
+                    }
+                }
+            }
+
+            if (vendorEntriesAdded == 0) {
+                LOGGER.info("No new vendor entries to merge (all {} already in devcon.xml)", originalCount);
+                return;
+            }
+
+            // Inject deviceType for Scanner entries that lack it
+            injectScannerDeviceTypes(entries);
+
+            // Write merged devcon.xml
+            writeDevconXml(devconFile, entries);
+            LOGGER.info("Merged devcon.xml: {} entries ({} original + {} from vendors)",
+                    entries.size(), originalCount, vendorEntriesAdded);
+
+        } catch (Exception e) {
+            LOGGER.error("Failed to merge vendor jpos.xml entries into devcon.xml: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Read vendor jpos.xml paths from config. Priority:
+     * 1. POSSUM_VENDOR_JPOS_PATHS env var (semicolon-delimited)
+     * 2. possum.vendor-jpos-paths in possum-config.yml
+     */
+    private static List<String> getVendorJposPaths() {
+        // Check env var first
+        String envPaths = System.getenv("POSSUM_VENDOR_JPOS_PATHS");
+        if (envPaths != null && !envPaths.isBlank()) {
+            List<String> paths = new ArrayList<>();
+            for (String p : envPaths.split(";")) {
+                String trimmed = p.trim();
+                if (!trimmed.isEmpty()) paths.add(trimmed);
+            }
+            LOGGER.info("Vendor jpos.xml paths from POSSUM_VENDOR_JPOS_PATHS: {}", paths);
+            return paths;
+        }
+
+        // Parse from possum-config.yml (simple YAML list extraction)
+        for (String configLoc : CONFIG_LOCATIONS) {
+            File configFile = new File(configLoc);
+            if (!configFile.exists()) continue;
+
+            try {
+                List<String> lines = Files.readAllLines(configFile.toPath(), StandardCharsets.UTF_8);
+                List<String> paths = new ArrayList<>();
+                boolean inVendorPaths = false;
+
+                for (String line : lines) {
+                    String trimmed = line.trim();
+                    // Detect the vendor-jpos-paths key
+                    if (trimmed.startsWith("vendor-jpos-paths:")) {
+                        inVendorPaths = true;
+                        continue;
+                    }
+                    if (inVendorPaths) {
+                        if (trimmed.startsWith("- ")) {
+                            // YAML list item
+                            String path = trimmed.substring(2).trim();
+                            // Strip quotes if present
+                            if ((path.startsWith("\"") && path.endsWith("\"")) ||
+                                    (path.startsWith("'") && path.endsWith("'"))) {
+                                path = path.substring(1, path.length() - 1);
+                            }
+                            if (!path.isEmpty()) paths.add(path);
+                        } else if (!trimmed.isEmpty() && !trimmed.startsWith("#")) {
+                            // Non-list, non-comment line — we've left the list
+                            break;
+                        }
+                    }
+                }
+
+                if (!paths.isEmpty()) {
+                    LOGGER.info("Vendor jpos.xml paths from {}: {}", configLoc, paths);
+                    return paths;
+                }
+            } catch (IOException e) {
+                LOGGER.warn("Failed to read {}: {}", configLoc, e.getMessage());
+            }
+        }
+
+        return Collections.emptyList();
+    }
+
+    /**
+     * Parse JposEntry elements from XML content. Returns a map of logicalName -> raw XML block.
+     */
+    private static LinkedHashMap<String, String> parseJposEntries(String xml) {
+        LinkedHashMap<String, String> entries = new LinkedHashMap<>();
+        // Match <JposEntry ...>...</JposEntry> blocks (multiline)
+        Pattern entryPattern = Pattern.compile("<JposEntry\\s[^>]*>.*?</JposEntry>", Pattern.DOTALL);
+        Pattern namePattern = Pattern.compile("logicalName=\"([^\"]+)\"");
+
+        Matcher entryMatcher = entryPattern.matcher(xml);
+        while (entryMatcher.find()) {
+            String entry = entryMatcher.group();
+            Matcher nameMatcher = namePattern.matcher(entry);
+            if (nameMatcher.find()) {
+                entries.put(nameMatcher.group(1), entry);
+            }
+        }
+        return entries;
+    }
+
+    /**
+     * Inject deviceType property into Scanner entries that lack it.
+     * Flatbed vs HandScanner is inferred from the logical name pattern.
+     */
+    private static void injectScannerDeviceTypes(LinkedHashMap<String, String> entries) {
+        List<String> keys = new ArrayList<>(entries.keySet());
+        for (String key : keys) {
+            String entry = entries.get(key);
+            if (entry.contains("category=\"Scanner\"") && !entry.contains("name=\"deviceType\"")) {
+                String type = key.matches("(?i).*(TableTop|Flatbed|MP7|8200|8400|8500|Magellan).*")
+                        ? "Flatbed" : "HandScanner";
+                // Insert deviceType prop before closing </JposEntry>
+                entry = entry.replace("</JposEntry>",
+                        "        <prop name=\"deviceType\" type=\"String\" value=\"" + type + "\"/>\n    </JposEntry>");
+                entries.put(key, entry);
+                LOGGER.info("  Injected deviceType={} into {}", type, key);
+            }
+        }
+    }
+
+    /**
+     * Write merged entries to devcon.xml.
+     */
+    private static void writeDevconXml(File devconFile, LinkedHashMap<String, String> entries) throws IOException {
+        StringBuilder sb = new StringBuilder();
+        sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+        sb.append("<!DOCTYPE JposEntries PUBLIC \"-//JavaPOS//DTD//EN\"\n");
+        sb.append("                             \"jpos/res/jcl.dtd\">\n");
+        sb.append("<JposEntries>\n");
+        sb.append("<!--Auto-merged by URSA JavaPOS on startup-->\n\n");
+
+        for (String entry : entries.values()) {
+            sb.append("    ").append(entry).append("\n\n");
+        }
+
+        sb.append("</JposEntries>\n");
+        Files.writeString(devconFile.toPath(), sb.toString(), StandardCharsets.UTF_8);
     }
 
     public String parseAndFormatCrashTime(String crashTime) {

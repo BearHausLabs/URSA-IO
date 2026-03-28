@@ -180,7 +180,19 @@ public class PrinterDevice implements StatusUpdateListener {
                                 print(printer, (BarcodeContent) content, printerStation);
                                 break;
                             case "IMAGE":
-                                print(printer, (ImageContent) content, printerStation);
+                                try {
+                                    print(printer, (ImageContent) content, printerStation);
+                                } catch (JposException imageEx) {
+                                    // JPOS_EPTR_TOOBIG (206) — image exceeds printer's
+                                    // printable area.  Log and skip rather than aborting the
+                                    // entire receipt; the text content is what matters.
+                                    if (imageEx.getErrorCodeExtended() == 206) {
+                                        log.failure("Skipping oversized image (TOOBIG) — receipt will print without it: "
+                                                + imageEx.getErrorCode() + ", " + imageEx.getErrorCodeExtended(), 13, imageEx);
+                                    } else {
+                                        throw imageEx;
+                                    }
+                                }
                                 break;
                             case "TEXT":
                             default:
