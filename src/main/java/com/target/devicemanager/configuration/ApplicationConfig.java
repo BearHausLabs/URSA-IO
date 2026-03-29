@@ -11,8 +11,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 @Configuration
@@ -32,16 +30,17 @@ public class ApplicationConfig {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
-                ArrayList<String> allowedOriginList = new ArrayList<>();
                 String[] fromEnv = getCORSOrigins();
-                if(fromEnv != null) {
-                    allowedOriginList.addAll(Arrays.asList(fromEnv));
+                var mapping = registry.addMapping("/**")
+                        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH")
+                        .allowedHeaders("*"); //set global CORS policy
+                if (fromEnv != null && fromEnv.length > 0) {
+                    mapping.allowedOrigins(fromEnv);
+                } else {
+                    // No CORS_ORIGINS env var set — allow all origins so Angular POS served
+                    // from a central dev server can reach the local JavaPOS service on any register.
+                    mapping.allowedOriginPatterns("*");
                 }
-                String[] allowedOrigins = new String[allowedOriginList.size()];
-                allowedOrigins = allowedOriginList.toArray(allowedOrigins);
-                registry.addMapping("/**")
-                        .allowedOrigins(allowedOrigins)
-                        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"); //set global CORS policy
             }
         };
     }
